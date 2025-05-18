@@ -20,26 +20,6 @@ sapply(required_packages, install_if_missing)
 # Załadowanie pakietów
 lapply(required_packages, library, character.only = TRUE)
 
-# --- Missing values visualization (finalfit) ---
-data %>%
-  dplyr::select(Hours_Studied, Attendance, Parental_Involvement, Access_to_Resources, 
-                Extracurricular_Activities, Sleep_Hours, Previous_Scores, 
-                Motivation_Level, Internet_Access, Tutoring_Sessions, Family_Income, 
-                Teacher_Quality, School_Type, Peer_Influence, Physical_Activity, 
-                Learning_Disabilities, Parental_Education_Level, Distance_from_Home, 
-                Gender) %>%
-  finalfit::missing_plot()
-
-# --- Missing values visualization (VIM) ---
-data %>%
-  dplyr::select(Hours_Studied, Attendance, Parental_Involvement, Access_to_Resources, 
-                Extracurricular_Activities, Sleep_Hours, Previous_Scores, 
-                Motivation_Level, Internet_Access, Tutoring_Sessions, Family_Income, 
-                Teacher_Quality, School_Type, Peer_Influence, Physical_Activity, 
-                Learning_Disabilities, Parental_Education_Level, Distance_from_Home, 
-                Gender) %>%
-  VIM::aggr(numbers = TRUE, prop = FALSE)
-
 # --- Walidacja danych ---
 RULE <- validator(
   Hours_Studied >= 0, Hours_Studied <= 30,
