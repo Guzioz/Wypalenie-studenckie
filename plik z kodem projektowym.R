@@ -2,7 +2,8 @@
 knitr::opts_chunk$set(echo = TRUE, fig.show="hold", fig.width=7, fig.height=5, dev="png")
 
 # Wczytanie danych
-data <- read.csv(file = "czynniki.csv")
+library(readxl)
+data <- read_excel("Wypalenie-wsrod-osob-studiujacych-2025-05-09.xlsx")
 data <- data.frame(data)
 
 # --- Pakiety ---
