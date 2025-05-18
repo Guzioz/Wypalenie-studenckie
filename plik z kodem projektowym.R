@@ -45,7 +45,7 @@ RULE <- validator(
   Exam_Score >= 0, Exam_Score <= 100
 )
 
-# --- Obsługa błędnych danych i imputacja ---
+# --- Obsługa błędnych danych i imputacja (jak ktoś nie jest ze studiów i puste kolumny)---
 out <- confront(data, RULE)
 data <- data %>% mutate_if(is.character, as.factor)
 data_no_error <- replace_errors(data, RULE)
