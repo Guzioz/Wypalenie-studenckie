@@ -1,7 +1,7 @@
 # --- Setup ---
 knitr::opts_chunk$set(echo = TRUE, fig.show="hold", fig.width=7, fig.height=5, dev="png")
 
-# Wczytanie danych
+# Wczytanie danych(co jest wyczerpaniem, co bierzemy pod uwagę, które to czynniki)
 library(readxl)
 data <- read_excel("Wypalenie-wsrod-osob-studiujacych-2025-05-09.xlsx")
 data <- data.frame(data)
