@@ -1,8 +1,9 @@
 # --- Setup ---
 knitr::opts_chunk$set(echo = TRUE, fig.show="hold", fig.width=7, fig.height=5, dev="png")
 
-# Wczytanie danych
-data <- read.csv(file = "czynniki.csv")
+# Wczytanie danych(co jest wyczerpaniem, co bierzemy pod uwagę, które to czynniki)
+library(readxl)
+data <- read_excel("Wypalenie-wsrod-osob-studiujacych-2025-05-09.xlsx")
 data <- data.frame(data)
 
 # --- Pakiety ---
@@ -19,6 +20,43 @@ sapply(required_packages, install_if_missing)
 
 # Załadowanie pakietów
 lapply(required_packages, library, character.only = TRUE)
+
+# Usuń kolumny, które są w całości NA
+data <- data[, colSums(!is.na(data)) > 0]
+
+# Usuń kolumnę "data", jeśli istnieje
+if ("data" %in% colnames(data)) {
+  data <- data[, colnames(data) != "data"]
+}
+data <- data[data[[1]] != "Nie", ]
+data <- data[!is.na(data[[11]]), ]
+data[, 21:ncol(data)] <- lapply(data[, 21:ncol(data)], function(col) {
+  col <- as.character(col)  # upewniamy się, że to tekst
+  col[col == "5 lub więcej"] <- "5"
+  as.numeric(col)
+})
+# Upewnij się, że dane są liczbowe (jeśli trzeba)
+data[, 21:ncol(data)] <- lapply(data[, 21:ncol(data)], as.numeric)
+
+# Oblicz sumę od 11. kolumny do końca dla każdego wiersza
+data$wypalenie_studenckie <- rowSums(data[, 21:ncol(data)], na.rm = TRUE)
+
+
+#DO POPRAWY, ABY ZNAKI ZMIENIŁY KOLEJNOŚĆ W SENSIE JAK COŚ DOSTAŁO 5 TO NIECH MA WARTOŚĆ 1 ITD
+kolumny_minus <- c(
+  "Czy.uważasz.że.masz.wsparcie.w.swoich.znajomych.ze.studiów.",
+  "Czy.uważasz.że.masz.wsparcie.u.rodziny.i.lub.swoich.znajomych.spoza.studiów.",
+  "Czy.uważasz.że.masz.dobre.relacje.z.prowadzącymi.",
+  "Jak.oceniasz.jakość.swojego.snu.",
+  "Czy.rozwijasz.swoje.pasje.poza.naukowo.",
+  "Jak.często.jesteś.aktywny.fizycznie."
+)
+data[kolumny_minus] <- lapply(data[kolumny_minus], function(col) {
+  col <- as.numeric(col)
+  6 - col
+})
+
+names(data)
 
 # --- Walidacja danych ---
 RULE <- validator(
@@ -44,7 +82,7 @@ RULE <- validator(
   Exam_Score >= 0, Exam_Score <= 100
 )
 
-# --- Obsługa błędnych danych i imputacja ---
+# --- Obsługa błędnych danych i imputacja (jak ktoś nie jest ze studiów i puste kolumny)---
 out <- confront(data, RULE)
 data <- data %>% mutate_if(is.character, as.factor)
 data_no_error <- replace_errors(data, RULE)
