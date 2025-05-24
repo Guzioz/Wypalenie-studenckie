@@ -90,3 +90,106 @@ colnames(anova_table) <- c("Źródło", "Sumy kw.", "Stopnie sw.", "F", "p-warto
 kable(anova_table, caption = "Tabela ANOVA: ") %>%
   kable_styling(bootstrap_options = c("striped", "hover", "bordered", "responsive"), 
                 full_width = FALSE, font_size = 14)
+
+
+
+
+#-----Nowe kody, czy coś chcemy zostawić czy jak robimy-----
+# Lista zmiennych jakościowych – już po make.names()
+zmienne_jakosciowe <- c("Płeć.wartość",
+                        "Na.jakiej.uczelni.studiujesz..wartość",
+                        "Rodzaj.studiów.wartość",
+                        "Jaki.kierunek.studiujesz..wartość",
+                        "Czy.pracujesz..wartość",
+                        "Miejsce.zamieszkania..wartość",
+                        "Czy.jesteś.singlem.singielką..wartość",
+                        "Na.którym.roku.studiów.jesteś..wartość")
+
+# Test ANOVA dla każdej zmiennej jakościowej
+for (zmienna in zmienne_jakosciowe) {
+  cat("\n🔎 Zmienna:", zmienna, "\n")
+  form <- as.formula(paste("wypalenie_studenckie ~", zmienna))
+  print(summary(aov(form, data = data)))
+}
+
+# Korelacja Pearsona: wiek a wypalenie
+# Zamień "35 i więcej" na 35 w kolumnie wieku
+data$Ile.masz.lat..wartość <- gsub("35 i więcej", "35", data$Ile.masz.lat..wartość)
+data$wiek_numeric <- as.numeric(data$Ile.masz.lat..wartość)
+cor.test(data$wiek_numeric, data$wypalenie_studenckie, use = "complete.obs", method = "pearson")
+
+
+# Wybieramy kolumny 21 do 38 oraz kolumnę wypalenie_studenckie
+sub_data <- data[, c("wypalenie_studenckie", colnames(data)[21:38])]
+
+# Konwertujemy wszystkie kolumny na numeryczne (na wypadek, gdyby były faktorami lub tekstem)
+sub_data <- data.frame(lapply(sub_data, function(x) as.numeric(as.character(x))))
+
+# Sprawdzamy korelację między wypalenie_studenckie a każdą z kolumn 21:38
+korelacje <- sapply(sub_data[, -1], function(x) cor(sub_data$wypalenie_studenckie, x, use = "complete.obs"))
+
+# Tworzymy czytelną ramkę danych z wynikami
+wynik_df <- data.frame(
+  zmienna = colnames(sub_data)[-1],
+  korelacja_z_wypaleniem = korelacje
+)
+
+# Wyświetlenie wyników
+print(wynik_df)
+library(ggplot2)
+library(reshape2)
+
+# Wybierz dane
+sub_data <- data[, c("wypalenie_studenckie", colnames(data)[21:38])]
+
+# Konwertuj wszystko na liczby
+sub_data <- data.frame(lapply(sub_data, function(x) as.numeric(as.character(x))))
+
+# Oblicz korelacje
+korelacje <- sapply(sub_data[, -1], function(x) cor(sub_data$wypalenie_studenckie, x, use = "complete.obs"))
+
+# Stwórz ramkę do wykresu
+df_korelacje <- data.frame(
+  zmienna = names(korelacje),
+  korelacja = korelacje
+)
+
+# Wykres heatmapy
+ggplot(df_korelacje, aes(x = "", y = zmienna, fill = korelacja)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0,
+                       name = "Korelacja") +
+  geom_text(aes(label = round(korelacja, 2)), color = "black") +
+  theme_minimal() +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.title.y = element_blank()) +
+  labs(title = "Korelacje z wypaleniem studenckim")
+
+max(data$wypalenie_studenckie, na.rm = TRUE)
+min(data$wypalenie_studenckie, na.rm = TRUE)
+library(dplyr)
+
+data <- data %>%
+  mutate(
+    ryzyko_wypalenia = case_when(
+      wypalenie_studenckie >= 61 ~ "wysokie",
+      wypalenie_studenckie >= 47 ~ "średnie",
+      wypalenie_studenckie >= 0  ~ "niskie",
+      TRUE ~ NA_character_  # na wypadek braków danych
+    )
+  )
+library(ggplot2)
+
+ggplot(data, aes(x = ryzyko_wypalenia,
+                 fill = as.factor(Czy.uważasz.że.masz.tendencje.do.przepracowywania.się.))) +
+  geom_bar(position = "fill") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(
+    title = "Tendencja do przepracowywania się wg poziomu ryzyka wypalenia",
+    x = "Ryzyko wypalenia",
+    y = "Procent odpowiedzi",
+    fill = "Tendencja do przepracowywania się"
+  ) +
+  theme_minimal()
