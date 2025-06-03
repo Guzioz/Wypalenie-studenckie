@@ -137,6 +137,7 @@ wynik_df <- data.frame(
 # Wyświetlenie wyników
 print(wynik_df)
 library(ggplot2)
+install.packages("reshape2")
 library(reshape2)
 
 # Wybierz dane
@@ -192,4 +193,25 @@ ggplot(data, aes(x = ryzyko_wypalenia,
     y = "Procent odpowiedzi",
     fill = "Tendencja do przepracowywania się"
   ) +
+  theme_minimal()
+
+#test t-studenta 
+t.test(wypalenie_studenckie ~ Płeć.wartość, data = ankieta)
+# Test t-Studenta dla płci
+t_test_result <- t.test(wypalenie_studenckie ~ Płeć.wartość, data = ankieta)
+# Wyświetlenie wyników testu t-Studenta
+t_test_result
+# Wykres t-Studenta
+ggplot(ankieta, aes(x = Płeć.wartość, y = wypalenie_studenckie)) +
+  geom_boxplot(fill = "lightblue", color = "black", alpha = 0.7) +
+  labs(title = "Wykres pudełkowy wypalenia studenckiego w zależności od płci", 
+       x = "Płeć", y = "Wypalenie studenckie") +
+  theme_minimal()
+# Wykres t-Studenta z dodanymi średnimi i odchyleniami standardowymi
+ggplot(ankieta, aes(x = Płeć.wartość, y = wypalenie_studenckie)) +
+  geom_boxplot(fill = "lightblue", color = "black", alpha = 0.7) +
+  stat_summary(fun = mean, geom = "point", shape = 18, size = 3, color = "red") +
+  stat_summary(fun.data = mean_cl_boot, geom = "errorbar", width = 0.2, color = "red") +
+  labs(title = "Wykres pudełkowy wypalenia studenckiego w zależności od płci", 
+       x = "Płeć", y = "Wypalenie studenckie") +
   theme_minimal()
