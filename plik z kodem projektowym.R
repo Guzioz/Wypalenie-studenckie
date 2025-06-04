@@ -43,19 +43,32 @@ data$wypalenie_studenckie <- rowSums(data[, 21:ncol(data)], na.rm = TRUE)
 
 
 #DO POPRAWY, ABY ZNAKI ZMIENIŁY KOLEJNOŚĆ W SENSIE JAK COŚ DOSTAŁO 5 TO NIECH MA WARTOŚĆ 1 ITD
-kolumny_minus <- c(
-  "Czy.uważasz.że.masz.wsparcie.w.swoich.znajomych.ze.studiów.",
-  "Czy.uważasz.że.masz.wsparcie.u.rodziny.i.lub.swoich.znajomych.spoza.studiów.",
-  "Czy.uważasz.że.masz.dobre.relacje.z.prowadzącymi.",
-  "Jak.oceniasz.jakość.swojego.snu.",
-  "Czy.rozwijasz.swoje.pasje.poza.naukowo.",
-  "Jak.często.jesteś.aktywny.fizycznie."
+# Kolumny do zmodyfikowania
+ankieta <- read_excel("Wypalenie-wsrod-osob-studiujacych-2025-05-09.xlsx")
+
+# Kolumny do zmiany
+kolumny_do_zmiany <- c(
+  "Czy czujesz że masz wsparcie w swoich znajomych ze studiów?",
+  "Czy uważasz że masz wsparcie u rodziny i/lub swoich znajomych spoza studiów?",
+  "Czy uważasz że masz dobre relacje z prowadzącymi?",
+  "Jak oceniasz jakość swojego snu?",
+  "Czy rozwijasz swoje pasje poza-naukowo?",
+  "Jak często jesteś aktywny fizycznie?"
 )
-data[kolumny_minus] <- lapply(data[kolumny_minus], function(col) {
-  col <- as.numeric(col)
-  6 - col
+
+# Zamiana wartości w kolumnach: 1 ↔ 5, 2 ↔ 4
+ankieta[kolumny_do_zmiany] <- lapply(ankieta[kolumny_do_zmiany], function(x) {
+  x <- as.numeric(x)
+  ifelse(x == 1, 5,
+         ifelse(x == 2, 4,
+                ifelse(x == 4, 2,
+                       ifelse(x == 5, 1, x))))
 })
 
+# Nadpisanie oryginalnego pliku
+install.packages("writexl")
+library(writexl)
+write_xlsx(ankieta, "Wypalenie-wsrod-osob-studiujacych-2025-05-09.xlsx")
 names(data)
 
 # --- Walidacja danych ---
