@@ -157,3 +157,104 @@ summary(anova_depersonalizacja_sen)
 anova_satysfakcja_sen <- aov(satysfakcja_z_osiagniec ~ Jak.oceniasz.jakość.swojego.snu., data = ankieta)
 summary(anova_satysfakcja_sen)
 #anova, t-studenta, chikwadrat, piramida korelacji
+
+# 📦 Załaduj pakiet
+library(corrplot)
+
+# 🔍 Zmienne z ankiety
+pytania <- c(
+  "Jak.często.jesteś.aktywny.fizycznie.",
+  "Jak.oceniasz.jakość.swojego.snu.",
+  "Czy.rozwijasz.swoje.pasje.poza.naukowo.",
+  "Jak.dużo.czasu.poświęcasz.na.naukę.tygodniowo.",
+  "Jak.oceniasz.trudność.twojego.kierunku."
+)
+
+wypalenie <- c(
+  "wyczerpanie_emocjonalne",
+  "depersonalizacja",
+  "satysfakcja_z_osiagniec"
+)
+
+# 📊 Macierz korelacji: pytania vs wypalenie
+macierz_korelacji <- cor(ankieta[, pytania], ankieta[, wypalenie], use = "complete.obs")
+
+# 🎨 Wykres korelacji
+corrplot(macierz_korelacji, is.corr = FALSE, method = "color",
+         tl.col = "black", tl.srt = 45, addCoef.col = "black",
+         number.cex = 0.8)
+
+# Test chi-kwadrat dla każdej zmiennej względem Wyczerpanie.studenta
+
+# 1. Na jakiej uczelni studiujesz?
+cat("===== Na jakiej uczelni studiujesz? =====\n")
+tab1 <- table(ankieta$Na.jakiej.uczelni.studiujesz., ankieta$Wyczerpanie.studenta)
+print(chisq.test(tab1))
+
+# 2. Jaki kierunek studiujesz?
+cat("\n===== Jaki kierunek studiujesz? =====\n")
+tab2 <- table(ankieta$Jaki.kierunek.studiujesz., ankieta$Wyczerpanie.studenta)
+print(chisq.test(tab2))
+
+# 3. Rodzaj studiów
+cat("\n===== Rodzaj studiów =====\n")
+tab3 <- table(ankieta$Rodzaj.studiów, ankieta$Wyczerpanie.studenta)
+print(chisq.test(tab3))
+
+# 4. Płeć
+cat("\n===== Płeć =====\n")
+tab4 <- table(ankieta$Płeć, ankieta$Wyczerpanie.studenta)
+print(chisq.test(tab4))
+
+# 5. Czy pracujesz?
+cat("\n===== Czy pracujesz? =====\n")
+tab5 <- table(ankieta$Czy.pracujesz., ankieta$Wyczerpanie.studenta)
+print(chisq.test(tab5))
+
+# 6. Miejsce zamieszkania
+cat("\n===== Miejsce zamieszkania =====\n")
+tab6 <- table(ankieta$Miejsce.zamieszkania., ankieta$Wyczerpanie.studenta)
+print(chisq.test(tab6))
+
+# 7. Czy jesteś singlem/singielką?
+cat("\n===== Czy jesteś singlem/singielką? =====\n")
+tab7 <- table(ankieta$Czy.jesteś.singlem.singielką., ankieta$Wyczerpanie.studenta)
+print(chisq.test(tab7))
+
+library(ggplot2)
+library(dplyr)
+
+# Tworzymy tabelę częstości
+tab7 <- table(ankieta$Czy.jesteś.singlem.singielką., ankieta$Wyczerpanie.studenta)
+
+# Zamieniamy tabelę na data frame
+df_tab7 <- as.data.frame(tab7)
+colnames(df_tab7) <- c("Status_Singla", "Wyczerpanie", "Liczba")
+
+# Obliczamy procenty w obrębie każdej grupy Status_Singla
+df_tab7 <- df_tab7 %>%
+  group_by(Status_Singla) %>%
+  mutate(Procent = Liczba / sum(Liczba) * 100)
+
+# Rysujemy wykres słupkowy z procentami
+ggplot(df_tab7, aes(x = Status_Singla, y = Procent, fill = Wyczerpanie)) +
+  geom_bar(stat = "identity", position = "fill") +  # position = "fill" normalizuje do 100% słupka
+  scale_y_continuous(labels = scales::percent_format(scale = 100)) +  # etykiety w procentach
+  labs(title = "Procentowy rozkład poziomu wyczerpania wg statusu singla",
+       x = "Czy jesteś singlem/singielką?",
+       y = "Procent osób",
+       fill = "Poziom wyczerpania") +
+  theme_minimal()
+
+# Liczymy ile osób przekracza każdy próg (pomijamy NA)
+ile_wyczerpanie <- sum(ankieta$wyczerpanie_emocjonalne > prog_wyczerpanie, na.rm = TRUE)
+ile_depersonalizacja <- sum(ankieta$depersonalizacja > prog_depersonalizacja, na.rm = TRUE)
+ile_satysfakcja <- sum(ankieta$satysfakcja_z_osiagniec > prog_satysfakcja, na.rm = TRUE)
+
+# Tworzymy tabelę wynikową
+tabela_progi <- data.frame(
+  Zmienna = c("wyczerpanie_emocjonalne", "depersonalizacja", "satysfakcja_z_osiagniec"),
+  Liczba_przekroczen = c(ile_wyczerpanie, ile_depersonalizacja, ile_satysfakcja)
+)
+
+print(tabela_progi
