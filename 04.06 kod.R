@@ -251,10 +251,161 @@ ile_wyczerpanie <- sum(ankieta$wyczerpanie_emocjonalne > prog_wyczerpanie, na.rm
 ile_depersonalizacja <- sum(ankieta$depersonalizacja > prog_depersonalizacja, na.rm = TRUE)
 ile_satysfakcja <- sum(ankieta$satysfakcja_z_osiagniec > prog_satysfakcja, na.rm = TRUE)
 
+# Liczymy ile osób NIE przekracza progu (pomijamy NA)
+nie_wyczerpanie <- sum(ankieta$wyczerpanie_emocjonalne <= prog_wyczerpanie, na.rm = TRUE)
+nie_depersonalizacja <- sum(ankieta$depersonalizacja <= prog_depersonalizacja, na.rm = TRUE)
+nie_satysfakcja <- sum(ankieta$satysfakcja_z_osiagniec <= prog_satysfakcja, na.rm = TRUE)
+
 # Tworzymy tabelę wynikową
 tabela_progi <- data.frame(
   Zmienna = c("wyczerpanie_emocjonalne", "depersonalizacja", "satysfakcja_z_osiagniec"),
-  Liczba_przekroczen = c(ile_wyczerpanie, ile_depersonalizacja, ile_satysfakcja)
+  Liczba_przekroczen = c(ile_wyczerpanie, ile_depersonalizacja, ile_satysfakcja),
+  Liczba_nie_przekroczen = c(nie_wyczerpanie, nie_depersonalizacja, nie_satysfakcja)
 )
 
-print(tabela_progi
+print(tabela_progi)
+
+
+# Funkcja do rysowania histogramu z linią progu
+rysuj_histogram <- function(data, zmienna, prog, tytul) {
+  ggplot(data, aes_string(x = zmienna)) +
+    geom_histogram(binwidth = 1, fill = "skyblue", color = "black", alpha = 0.7) +
+    geom_vline(xintercept = prog, color = "red", linetype = "dashed", size = 1) +
+    labs(title = tytul,
+         x = zmienna,
+         y = "Liczba osób") +
+    theme_minimal()
+}
+
+# Rysujemy histogramy
+p1 <- rysuj_histogram(ankieta, "wyczerpanie_emocjonalne", prog_wyczerpanie, "Wyczerpanie emocjonalne")
+p2 <- rysuj_histogram(ankieta, "depersonalizacja", prog_depersonalizacja, "Depersonalizacja")
+p3 <- rysuj_histogram(ankieta, "satysfakcja_z_osiagniec", prog_satysfakcja, "Satysfakcja z osiągnięć")
+
+# Wyświetlamy wykresy (jeśli używasz RStudio, wyświetli je kolejno)
+print(p1)
+print(p2)
+print(p3)
+      
+
+library(nnet)
+
+# Upewnij się, że Wyczerpanie.studenta to faktor
+ankieta$Wyczerpanie.studenta <- factor(ankieta$Wyczerpanie.studenta, 
+                                       levels = c("niskie", "umiarkowane", "wysokie"))
+
+# Budujemy model regresji logistycznej wieloklasowej
+model <- multinom(Wyczerpanie.studenta ~ wyczerpanie_emocjonalne + depersonalizacja + satysfakcja_z_osiagniec, data = ankieta)
+
+# Wyświetlamy podsumowanie modelu
+summary(model)
+
+# Aby ocenić istotność, można obliczyć wartości p (przybliżone)
+z <- summary(model)$coefficients / summary(model)$standard.errors
+p <- 2 * (1 - pnorm(abs(z)))
+print(p)
+
+# Zamiana kategorii na liczby (np. niskie=1, umiarkowane=2, wysokie=3)
+ankieta$Wyczerpanie_num <- as.numeric(factor(ankieta$Wyczerpanie.studenta, levels = c("niskie", "umiarkowane", "wysokie")))
+
+cor(ankieta$Wyczerpanie_num, ankieta$wyczerpanie_emocjonalne, method = "spearman", use = "complete.obs")
+cor(ankieta$Wyczerpanie_num, ankieta$depersonalizacja, method = "spearman", use = "complete.obs")
+cor(ankieta$Wyczerpanie_num, ankieta$satysfakcja_z_osiagniec, method = "spearman", use = "complete.obs")
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Usuwamy brakujące wartości potrzebnych kolumn
+df <- ankieta %>%
+  select(Wyczerpanie.studenta, wyczerpanie_emocjonalne, depersonalizacja, satysfakcja_z_osiagniec) %>%
+  filter(!is.na(Wyczerpanie.studenta))
+
+# Obliczamy średnie dla każdej grupy i zmiennej
+df_summary <- df %>%
+  group_by(Wyczerpanie.studenta) %>%
+  summarise(
+    srednie_wyczerpanie = mean(wyczerpanie_emocjonalne, na.rm = TRUE),
+    srednia_depersonalizacja = mean(depersonalizacja, na.rm = TRUE),
+    srednia_satysfakcja = mean(satysfakcja_z_osiagniec, na.rm = TRUE)
+  ) %>%
+  pivot_longer(cols = -Wyczerpanie.studenta,
+               names_to = "Zmienna",
+               values_to = "Srednia")
+
+# Zamiana nazw na czytelniejsze
+df_summary$Zmienna <- recode(df_summary$Zmienna,
+                             srednie_wyczerpanie = "Wyczerpanie emocjonalne",
+                             srednia_depersonalizacja = "Depersonalizacja",
+                             srednia_satysfakcja = "Satysfakcja z osiągnięć")
+
+# Rysujemy wykres
+ggplot(df_summary, aes(x = Wyczerpanie.studenta, y = Srednia, fill = Zmienna)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  labs(title = "Średnie wartości zmiennych wg poziomu wypalenia studenta",
+       x = "Poziom wypalenia studenta",
+       y = "Średnia wartość",
+       fill = "Zmienna") +
+  theme_minimal()
+
+library(dplyr)
+library(ggplot2)
+
+# Zakładam, że progi prog_wyczerpanie, prog_depersonalizacja, prog_satysfakcja są już wyliczone
+
+# 1. Dodajemy kolumny logiczne przekroczenia progów
+ankieta <- ankieta %>%
+  mutate(
+    przekroczenie_wyczerpanie = wyczerpanie_emocjonalne > prog_wyczerpanie,
+    przekroczenie_depersonalizacja = depersonalizacja > prog_depersonalizacja,
+    przekroczenie_satysfakcja = satysfakcja_z_osiagniec > prog_satysfakcja
+  )
+
+# 2. Tworzymy tabelę liczby osób wg kombinacji progów i poziomu wypalenia
+tabela_kombinacji <- ankieta %>%
+  filter(!is.na(Wyczerpanie.studenta)) %>%
+  group_by(Wyczerpanie.studenta,
+           przekroczenie_wyczerpanie,
+           przekroczenie_depersonalizacja,
+           przekroczenie_satysfakcja) %>%
+  summarise(liczba = n(), .groups = "drop") %>%
+  mutate(
+    przekroczenie_wyczerpanie = ifelse(przekroczenie_wyczerpanie, "Tak", "Nie"),
+    przekroczenie_depersonalizacja = ifelse(przekroczenie_depersonalizacja, "Tak", "Nie"),
+    przekroczenie_satysfakcja = ifelse(przekroczenie_satysfakcja, "Tak", "Nie"),
+    kombinacja = paste0(
+      "Wyczerpanie: ", przekroczenie_wyczerpanie, ", ",
+      "Depers.: ", przekroczenie_depersonalizacja, ", ",
+      "Satysf.: ", przekroczenie_satysfakcja
+    )
+  )
+
+print(tabela_kombinacji)
+library(dplyr)
+library(ggplot2)
+
+# Przyjmuję, że tabela_kombinacji jest już przygotowana jak wcześniej:
+# tabela_kombinacji z kolumnami: Wyczerpanie.studenta, kombinacja, liczba
+
+# Filtrujemy, porządkujemy i rysujemy oddzielnie dla każdej grupy
+stopnie <- unique(tabela_kombinacji$Wyczerpanie.studenta)
+
+for(stopien in stopnie) {
+  df_filtr <- tabela_kombinacji %>%
+    filter(Wyczerpanie.studenta == stopien, liczba >= 5) %>%
+    arrange(desc(liczba))
+  
+  p <- ggplot(df_filtr, aes(x = reorder(kombinacja, liczba), y = liczba, fill = liczba)) +
+    geom_bar(stat = "identity") +
+    coord_flip() +
+    labs(
+      title = paste("Liczba osób wg kombinacji przekroczeń progów\nPoziom wypalenia:", stopien),
+      x = "Kombinacja przekroczeń progów",
+      y = "Liczba osób"
+    ) +
+    theme_minimal() +
+    guides(fill = "none") +
+    theme(axis.text.y = element_text(size = 9))
+  
+  print(p)
+}
