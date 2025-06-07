@@ -446,3 +446,44 @@ ggplot(df_procent, aes(x = Płeć, y = procent, fill = Wyczerpanie.studenta)) +
   theme_minimal()
 
 write.csv(ankieta, file = "ankieta.csv", row.names = FALSE)
+
+#gghistostats dla wyczerpanie_emocjonalne
+library(ggstatsplot)
+library(ggplot2)
+gghistostats(
+  data = ankieta, 
+  x = wyczerpanie_emocjonalne,
+  binwidth = 0.5,
+  xlab = "Wyczerpanie emocjonalne",
+  title = "Analiza rozkładu wyczerpania emocjonalnego wśród studentów",
+  caption = NULL,
+  type = "parametric",
+  bf.message = FALSE,
+  bin.args = list(color = "black", fill = "darkgreen", alpha = 0.7),
+)
+
+#gghistostats dla depersonalizacja
+gghistostats(
+  data = ankieta, 
+  x = depersonalizacja,
+  binwidth = 0.5,
+  xlab = "Wyczerpanie emocjonalne",
+  title = "Analiza rozkładu depersonalizacji wśród studentów",
+  caption = NULL,
+  type = "parametric",
+  bf.message = FALSE,
+  bin.args = list(color = "black", fill = "darkgreen", alpha = 0.7),
+)
+
+#gghistostats dla satysfakcja_z_osiagniec
+gghistostats(
+  data = ankieta, 
+  x = satysfakcja_z_osiagniec,
+  binwidth = 0.5,
+  xlab = "Satysfakcja z osiągnięć",
+  title = "Analiza rozkładu satysfakcji z osiągnięć wśród studentów",
+  caption = NULL,
+  type = "parametric",
+  bf.message = FALSE,
+  bin.args = list(color = "black", fill = "darkgreen", alpha = 0.7),
+)
