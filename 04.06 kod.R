@@ -56,14 +56,13 @@ ankieta$depersonalizacja <- rowSums(ankieta[, c(
   "Jak.często.odkładasz.zadania.na.później."
 )])
 # Oblicz progi
-prog_wyczerpanie <- mean(ankieta$wyczerpanie_emocjonalne, na.rm = TRUE) + 
-  sd(ankieta$wyczerpanie_emocjonalne, na.rm = TRUE)
+prog_wyczerpanie <- mean(ankieta$wyczerpanie_emocjonalne, na.rm = TRUE) 
 
-prog_depersonalizacja <- mean(ankieta$depersonalizacja, na.rm = TRUE) + 
-  sd(ankieta$depersonalizacja, na.rm = TRUE)
+prog_depersonalizacja <- mean(ankieta$depersonalizacja, na.rm = TRUE) 
 
-prog_satysfakcja <- mean(ankieta$satysfakcja_z_osiagniec, na.rm = TRUE) + 
-  sd(ankieta$satysfakcja_z_osiagniec, na.rm = TRUE) 
+prog_satysfakcja <- mean(ankieta$satysfakcja_z_osiagniec, na.rm = TRUE)
+
+summary(ankieta[, c("wyczerpanie_emocjonalne", "depersonalizacja", "satysfakcja_z_osiagniec")])
 
 # Prawidłowo działająca funkcja klasyfikująca
 klasyfikuj_wyczerpanie <- function(w, d, s) {
@@ -104,7 +103,7 @@ ggplot(ankieta, aes(x = Wyczerpanie.studenta,
   ) +
   theme_minimal()
 
-# ANOVA: Wyczerpanie emocjonalne
+# ANOVA: Wyczerpanie emocjonalne*
 anova_emocjonalne <- aov(wyczerpanie_emocjonalne ~ Płeć.wartość, data = ankieta)
 summary(anova_emocjonalne)
 
@@ -201,7 +200,7 @@ cat("\n===== Rodzaj studiów =====\n")
 tab3 <- table(ankieta$Rodzaj.studiów, ankieta$Wyczerpanie.studenta)
 print(chisq.test(tab3))
 
-# 4. Płeć
+# 4. Płeć*
 cat("\n===== Płeć =====\n")
 tab4 <- table(ankieta$Płeć, ankieta$Wyczerpanie.studenta)
 print(chisq.test(tab4))
@@ -221,30 +220,6 @@ cat("\n===== Czy jesteś singlem/singielką? =====\n")
 tab7 <- table(ankieta$Czy.jesteś.singlem.singielką., ankieta$Wyczerpanie.studenta)
 print(chisq.test(tab7))
 
-library(ggplot2)
-library(dplyr)
-
-# Tworzymy tabelę częstości
-tab7 <- table(ankieta$Czy.jesteś.singlem.singielką., ankieta$Wyczerpanie.studenta)
-
-# Zamieniamy tabelę na data frame
-df_tab7 <- as.data.frame(tab7)
-colnames(df_tab7) <- c("Status_Singla", "Wyczerpanie", "Liczba")
-
-# Obliczamy procenty w obrębie każdej grupy Status_Singla
-df_tab7 <- df_tab7 %>%
-  group_by(Status_Singla) %>%
-  mutate(Procent = Liczba / sum(Liczba) * 100)
-
-# Rysujemy wykres słupkowy z procentami
-ggplot(df_tab7, aes(x = Status_Singla, y = Procent, fill = Wyczerpanie)) +
-  geom_bar(stat = "identity", position = "fill") +  # position = "fill" normalizuje do 100% słupka
-  scale_y_continuous(labels = scales::percent_format(scale = 100)) +  # etykiety w procentach
-  labs(title = "Procentowy rozkład poziomu wyczerpania wg statusu singla",
-       x = "Czy jesteś singlem/singielką?",
-       y = "Procent osób",
-       fill = "Poziom wyczerpania") +
-  theme_minimal()
 
 # Liczymy ile osób przekracza każdy próg (pomijamy NA)
 ile_wyczerpanie <- sum(ankieta$wyczerpanie_emocjonalne > prog_wyczerpanie, na.rm = TRUE)
@@ -409,3 +384,63 @@ for(stopien in stopnie) {
   
   print(p)
 }
+pytania <- c(
+  "Jak.często.jesteś.aktywny.fizycznie.",
+  "Jak.oceniasz.jakość.swojego.snu.",
+  "Czy.rozwijasz.swoje.pasje.poza.naukowo.",
+  "Jak.dużo.czasu.poświęcasz.na.naukę.tygodniowo.",
+  "Jak.oceniasz.trudność.twojego.kierunku."
+)
+
+wypalenie <- c(
+  "wyczerpanie_emocjonalne",
+  "depersonalizacja",
+  "satysfakcja_z_osiagniec"
+)
+
+for (pyt in pytania) {
+  for (wyp in wypalenie) {
+    # Budujemy formułę ANOVA, np. wyczerpanie_emocjonalne ~ Jak.często.jesteś.aktywny.fizycznie.
+    formula_anova <- as.formula(paste(wyp, "~", pyt))
+    
+    # Sprawdzamy, czy w kolumnach nie ma za dużo NA
+    dane <- ankieta[, c(wyp, pyt)]
+    dane <- dane[complete.cases(dane), ]
+    
+    if (nrow(dane) > 10) {  # minimalna liczba obserwacji, żeby test miał sens
+      anova_res <- aov(formula_anova, data = dane)
+      cat("\nANOVA dla:", wyp, "względem", pyt, "\n")
+      print(summary(anova_res))
+    } else {
+      cat("\nZa mało danych do analizy dla:", wyp, "i", pyt, "\n")
+    }
+  }
+}
+
+library(ggplot2)
+
+# Zakładam, że masz kolumny:
+# ankieta$Wyczerpanie.studenta (np. "niskie", "umiarkowane", "wysokie")
+# ankieta$Pleć (np. "Kobieta", "Mężczyzna")
+library(ggplot2)
+library(dplyr)
+
+# Przygotowujemy dane z procentami w grupach płci
+df_procent <- ankieta %>%
+  filter(!is.na(Płeć), !is.na(Wyczerpanie.studenta)) %>%
+  group_by(Płeć, Wyczerpanie.studenta) %>%
+  summarise(liczba = n(), .groups = "drop") %>%
+  group_by(Płeć) %>%
+  mutate(procent = liczba / sum(liczba) * 100)
+
+# Rysujemy wykres słupkowy procentowy
+ggplot(df_procent, aes(x = Płeć, y = procent, fill = Wyczerpanie.studenta)) +
+  geom_bar(stat = "identity", position = "fill") +  # "fill" to wykres skumulowany z normalizacją do 1
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  labs(
+    title = "Procentowy rozkład poziomu wypalenia studenta wg płci",
+    x = "Płeć",
+    y = "Procent osób",
+    fill = "Poziom wypalenia"
+  ) +
+  theme_minimal()
