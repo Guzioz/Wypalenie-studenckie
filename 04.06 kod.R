@@ -444,3 +444,5 @@ ggplot(df_procent, aes(x = Płeć, y = procent, fill = Wyczerpanie.studenta)) +
     fill = "Poziom wypalenia"
   ) +
   theme_minimal()
+
+write.csv(ankieta, file = "ankieta.csv", row.names = FALSE)
