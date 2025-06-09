@@ -207,7 +207,7 @@ print(chisq.test(tab4))
 
 # 5. Czy pracujesz?
 cat("\n===== Czy pracujesz? =====\n")
-tab5 <- table(ankieta$Czy.pracujesz., ankieta$Wyczerpanie.studenta)
+tab5 <- table(ankieta$Czy.pracujesz., ankieta$depersonalizacja)
 print(chisq.test(tab5))
 
 # 6. Miejsce zamieszkania
@@ -321,6 +321,20 @@ ggplot(df_summary, aes(x = Wyczerpanie.studenta, y = Srednia, fill = Zmienna)) +
        x = "Poziom wypalenia studenta",
        y = "Średnia wartość",
        fill = "Zmienna") +
+  theme_minimal()
+
+
+ggplot(df_summary, aes(x = Wyczerpanie.studenta, y = Srednia, fill = Zmienna)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  scale_fill_manual(
+    values = c("#a8ddb5", "green", "#006d2c")  # te same 3 odcienie zielonego
+  ) +
+  labs(
+    title = "Średnie wartości zmiennych wg poziomu wypalenia studenta",
+    x = "Poziom wypalenia studenta",
+    y = "Średnia wartość",
+    fill = "Zmienna"
+  ) +
   theme_minimal()
 
 library(dplyr)
@@ -445,6 +459,20 @@ ggplot(df_procent, aes(x = Płeć, y = procent, fill = Wyczerpanie.studenta)) +
   ) +
   theme_minimal()
 
+ggplot(df_procent, aes(x = Płeć, y = procent, fill = Wyczerpanie.studenta)) +
+  geom_bar(stat = "identity", position = "fill") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  scale_fill_manual(
+    values = c("#a8ddb5", "green", "#006d2c")  # trzy odcienie zieleni
+  ) +
+  labs(
+    title = "Procentowy rozkład poziomu wypalenia studenta wg płci",
+    x = "Płeć",
+    y = "Procent osób",
+    fill = "Poziom wypalenia"
+  ) +
+  theme_minimal()
+
 write.csv(ankieta, file = "ankieta.csv", row.names = FALSE)
 
 #gghistostats dla wyczerpanie_emocjonalne
@@ -487,3 +515,32 @@ gghistostats(
   bf.message = FALSE,
   bin.args = list(color = "black", fill = "darkgreen", alpha = 0.7),
 )
+
+# catterplot dla depersonalizacja i jak duzo czasu poswiecasz na nauke tygodniowo
+ggplot(ankieta, aes(x = Czy.rozwijasz.swoje.pasje.poza.naukowo., y = satysfakcja_z_osiagniec)) +
+  geom_point(color = "darkgreen") +
+  labs(
+    x = "Czy rozwijasz swoje pasje poza naukowo?",
+    y = "Satysfakcja z osiągnieć",
+    title = "Zależność między rozwijaniem pasji a satysfakcją"
+  )+
+  theme_minimal() 
+
+
+ggplot(ankieta, aes(x = Jak.oceniasz.trudność.twojego.kierunku., y = wyczerpanie_emocjonalne)) +
+  geom_point(color = "darkgreen") +
+  labs(
+    x = "jak oceniasz trudność twojego kierunku?",
+    y = "Wyczerpanie emocjonalne",
+    title = "Zależność między trudnością kierunku a wyczerpaniem emocjonalnym"
+  )+
+  theme_minimal() 
+
+ggplot(ankieta, aes(x = Jak.oceniasz.trudność.twojego.kierunku., y = depersonalizacja)) +
+  geom_point(color = "darkgreen") +
+  labs(
+    x = "jak oceniasz trudność twojego kierunku?",
+    y = "Depersonalizacja",
+    title = "Zależność między trudnością kierunku a depersonalizacją"
+  )+
+  theme_minimal() 
