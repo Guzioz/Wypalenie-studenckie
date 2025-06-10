@@ -327,13 +327,13 @@ ggplot(df_summary, aes(x = Wyczerpanie.studenta, y = Srednia, fill = Zmienna)) +
 ggplot(df_summary, aes(x = Wyczerpanie.studenta, y = Srednia, fill = Zmienna)) +
   geom_bar(stat = "identity", position = position_dodge()) +
   scale_fill_manual(
-    values = c("#a8ddb5", "green", "#006d2c")  # te same 3 odcienie zielonego
+    values = c("#a8ddb5", "green", "#006d2c")  
   ) +
   labs(
-    title = "Średnie wartości zmiennych wg poziomu wypalenia studenta",
-    x = "Poziom wypalenia studenta",
-    y = "Średnia wartość",
-    fill = "Zmienna"
+    title = "Average values of variables by burnout level",
+    x = "Burnout level",
+    y = "Average value",
+    fill = "Variable"
   ) +
   theme_minimal()
 
@@ -432,11 +432,6 @@ for (pyt in pytania) {
 }
 
 library(ggplot2)
-
-# Zakładam, że masz kolumny:
-# ankieta$Wyczerpanie.studenta (np. "niskie", "umiarkowane", "wysokie")
-# ankieta$Pleć (np. "Kobieta", "Mężczyzna")
-library(ggplot2)
 library(dplyr)
 
 # Przygotowujemy dane z procentami w grupach płci
@@ -449,13 +444,13 @@ df_procent <- ankieta %>%
 
 # Rysujemy wykres słupkowy procentowy
 ggplot(df_procent, aes(x = Płeć, y = procent, fill = Wyczerpanie.studenta)) +
-  geom_bar(stat = "identity", position = "fill") +  # "fill" to wykres skumulowany z normalizacją do 1
+  geom_bar(stat = "identity", position = "fill") +  
   scale_y_continuous(labels = scales::percent_format(scale = 1)) +
   labs(
-    title = "Procentowy rozkład poziomu wypalenia studenta wg płci",
-    x = "Płeć",
-    y = "Procent osób",
-    fill = "Poziom wypalenia"
+    title = "Percentage distribution of burout level by gender",
+    x = "Gender",
+    y = "Percent of responders",
+    fill = "Burnout level"
   ) +
   theme_minimal()
 
@@ -466,10 +461,10 @@ ggplot(df_procent, aes(x = Płeć, y = procent, fill = Wyczerpanie.studenta)) +
     values = c("#a8ddb5", "green", "#006d2c")  # trzy odcienie zieleni
   ) +
   labs(
-    title = "Procentowy rozkład poziomu wypalenia studenta wg płci",
-    x = "Płeć",
-    y = "Procent osób",
-    fill = "Poziom wypalenia"
+    title = "Percentage distribution of student burnout level by gender",
+    x = "Gender",
+    y = "Percentage of respondents",
+    fill = "Burnout level"
   ) +
   theme_minimal()
 
@@ -482,8 +477,8 @@ gghistostats(
   data = ankieta, 
   x = wyczerpanie_emocjonalne,
   binwidth = 0.5,
-  xlab = "Wyczerpanie emocjonalne",
-  title = "Analiza rozkładu wyczerpania emocjonalnego wśród studentów",
+  xlab = "Emotional Exhaustion",
+  title = "Distribution of emotional exhaustion among students",
   caption = NULL,
   type = "parametric",
   bf.message = FALSE,
@@ -495,8 +490,8 @@ gghistostats(
   data = ankieta, 
   x = depersonalizacja,
   binwidth = 0.5,
-  xlab = "Wyczerpanie emocjonalne",
-  title = "Analiza rozkładu depersonalizacji wśród studentów",
+  xlab = "Depersonalization",
+  title = "Distribution of depersonalization among students",
   caption = NULL,
   type = "parametric",
   bf.message = FALSE,
@@ -508,39 +503,39 @@ gghistostats(
   data = ankieta, 
   x = satysfakcja_z_osiagniec,
   binwidth = 0.5,
-  xlab = "Satysfakcja z osiągnięć",
-  title = "Analiza rozkładu satysfakcji z osiągnięć wśród studentów",
+  xlab = "Satisfaction with Achievements",
+  title = "Distribution of satisfaction with achievements among students",
   caption = NULL,
   type = "parametric",
   bf.message = FALSE,
   bin.args = list(color = "black", fill = "darkgreen", alpha = 0.7),
 )
 
-# catterplot dla depersonalizacja i jak duzo czasu poswiecasz na nauke tygodniowo
-ggplot(ankieta, aes(x = Czy.rozwijasz.swoje.pasje.poza.naukowo., y = satysfakcja_z_osiagniec)) +
-  geom_point(color = "darkgreen") +
+# catterplot dla satysfakcji z osiagniec i jak duzo czasu poswiecasz na nauke tygodniowo
+ggplot(ankieta, aes(x = factor(Czy.rozwijasz.swoje.pasje.poza.naukowo.), 
+                    y = satysfakcja_z_osiagniec)) +
+  geom_boxplot(fill = "darkgreen", alpha = 0.6) +
   labs(
-    x = "Czy rozwijasz swoje pasje poza naukowo?",
-    y = "Satysfakcja z osiągnieć",
-    title = "Zależność między rozwijaniem pasji a satysfakcją"
-  )+
-  theme_minimal() 
-
+    x = "Do you develop your passions outside of science?",
+    y = "Satisfaction with Achievements",
+    title = "The relationship between developing passion and satisfaction"
+  ) +
+  theme_minimal()
 
 ggplot(ankieta, aes(x = Jak.oceniasz.trudność.twojego.kierunku., y = wyczerpanie_emocjonalne)) +
   geom_point(color = "darkgreen") +
   labs(
-    x = "jak oceniasz trudność twojego kierunku?",
-    y = "Wyczerpanie emocjonalne",
-    title = "Zależność między trudnością kierunku a wyczerpaniem emocjonalnym"
+    x = "How do you rate the difficulty of your field of study?",
+    y = "Emotional Exhaustion",
+    title = "The relationship between the difficulty of the field of study and emotional exhaustion"
   )+
   theme_minimal() 
 
 ggplot(ankieta, aes(x = Jak.oceniasz.trudność.twojego.kierunku., y = depersonalizacja)) +
   geom_point(color = "darkgreen") +
   labs(
-    x = "jak oceniasz trudność twojego kierunku?",
-    y = "Depersonalizacja",
-    title = "Zależność między trudnością kierunku a depersonalizacją"
+    x = "How do you rate the difficulty of your field of study?",
+    y = "Depersonalization",
+    title = "The relationship between the difficulty of the field of study and depersonalization"
   )+
   theme_minimal() 
