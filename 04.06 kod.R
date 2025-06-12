@@ -337,6 +337,32 @@ ggplot(df_summary, aes(x = Wyczerpanie.studenta, y = Srednia, fill = Zmienna)) +
   ) +
   theme_minimal()
 
+
+
+df_summary <- df_summary %>%
+  mutate(
+    Burnout = recode(Wyczerpanie.studenta,
+                     "niskie" = "Low",
+                     "umiarkowane" = "Medium",
+                     "wysokie" = "High"),
+    Variable = recode(Zmienna,
+                      "Satysfakcja z osiągnięć" = "Satisfaction with Achievements",
+                      "Wyczerpanie emocjonalne" = "Emotional exhaustion",
+                      "Depersonalizacja" = "Depersonalization")  # dodaj więcej, jeśli masz inne zmienne
+  )
+
+ggplot(df_summary, aes(x = Burnout, y = Srednia, fill = Variable)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  scale_fill_manual(
+    values = c("#a8ddb5", "green", "#006d2c")  # three shades of green
+  ) +
+  labs(
+    title = "Average values of variables by burnout level",
+    x = "Burnout level",
+    y = "Average value",
+    fill = "Variable"
+  ) +
+  theme_minimal()
 library(dplyr)
 library(ggplot2)
 
@@ -468,6 +494,31 @@ ggplot(df_procent, aes(x = Płeć, y = procent, fill = Wyczerpanie.studenta)) +
   ) +
   theme_minimal()
 
+
+df_procent <- df_procent %>%
+  mutate(
+    Gender = recode(Płeć,
+                    "Kobieta" = "Female",
+                    "Mężczyzna" = "Male"),
+    Burnout = recode(Wyczerpanie.studenta,
+                     "niskie" = "Low",
+                     "umiarkowane" = "Medium",
+                     "wysokie" = "High")
+  )
+
+ggplot(df_procent, aes(x = Gender, y = procent, fill = Burnout)) +
+  geom_bar(stat = "identity", position = "fill") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  scale_fill_manual(
+    values = c("#a8ddb5", "green", "#006d2c")  # three shades of green
+  ) +
+  labs(
+    title = "Percentage distribution of student burnout level by gender",
+    x = "Gender",
+    y = "Percentage of respondents",
+    fill = "Burnout level"
+  ) +
+  theme_minimal()
 write.csv(ankieta, file = "ankieta.csv", row.names = FALSE)
 
 #gghistostats dla wyczerpanie_emocjonalne
