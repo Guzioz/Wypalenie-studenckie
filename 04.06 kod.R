@@ -567,9 +567,9 @@ ggplot(ankieta, aes(x = factor(Czy.rozwijasz.swoje.pasje.poza.naukowo.),
                     y = satysfakcja_z_osiagniec)) +
   geom_boxplot(fill = "darkgreen", alpha = 0.6) +
   labs(
-    x = "Do you develop your passions outside of science?",
-    y = "Satisfaction with Achievements",
-    title = "The relationship between developing passion and satisfaction"
+    x = "Czy rozwijasz swoje pasje poza naukowo?",
+    y = "Satysfakcja z osiągnięć",
+    title = "Związek pomiędzy rozwijaniem pasji a satysfakcją z osiągnięć"
   ) +
   theme_minimal()
 
