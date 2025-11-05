@@ -590,3 +590,64 @@ ggplot(ankieta, aes(x = Jak.oceniasz.trudność.twojego.kierunku., y = depersona
     title = "The relationship between the difficulty of the field of study and depersonalization"
   )+
   theme_minimal() 
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+  ### ONE HOT ENCODING
+
+install.packages("caret")
+library(caret)
+
+# Usuwamy kolumny, które się powtarzają -czyli kończą się na "wartosc"
+ankieta <- ankieta %>%
+  select(-ends_with("wartość"))
+
+# Wybór TYLKO kolumn kategorycznych, które mają być zakodowane
+dane_kategoryczne <- ankieta %>%
+  select(where(is.factor) | where(is.character))
+
+# Usuń te kolumny z oryginalnej ramki danych
+dane_kategoryczne <- dane_kategoryczne %>%
+  select(-all_of(kolumny_do_usuniecia))
+
+# Wybór TYLKO kolumn numerycznych, które mają pozostać bez zmian
+dane_numeryczne <- ankieta %>%
+  select(where(is.numeric))
+
+# A. UTWORZENIE OBIEKTU TRANSFORMUJĄCEGO
+# Formuła: '~ .' oznacza "użyj wszystkich kolumn w danych_kategoryczne"
+dmy_obj <- dummyVars(
+  formula = ~ ., 
+  data = dane_kategoryczne, 
+  fullRank = FALSE # Pełne kodowanie One-Hot (bez usuwania jednej kategorii jako bazowej)
+)
+
+# B. WYKONANIE TRANSFORMACJI
+# Transformacja DANYCH KATEGORYCZNYCH
+one_hot_encoded_macierz <- predict(dmy_obj, newdata = dane_kategoryczne)
+
+# Konwersja macierzy na ramkę danych
+one_hot_encoded_df <- as.data.frame(one_hot_encoded_macierz)
+
+# C. SCALENIE
+# Połącz kolumny numeryczne (dane_numeryczne) z nowo zakodowanymi kolumnami (one_hot_encoded_df)
+ankieta<- bind_cols(ankieta, one_hot_encoded_df)
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+  ### MODELOWANIE
+# Wybór TYLKO kolumn numerycznych, które mają pozostać bez zmian
+  model_data <- ankieta %>%
+  select(where(is.numeric))  
+  # 1. Utworzenie Pełnego Modelu (Full Model)
+  # Wzór 'mpg ~ .' oznacza, że 'mpg' jest zmienną zależną, a wszystkie inne kolumny są predyktorami.
+  pelny_model <- lm(Wyczerpanie_num ~ ., data = model_data)
+
+# Podsumowanie pełnego modelu (opcjonalnie)
+  summary(pelny_model)
+
+  # 2. Wykonanie Eliminacji Wstecznej
+  # Kryterium domyślne to minimalizacja AIC
+  model_wsteczny <- step(pelny_model, direction = "backward")
+  # 3. Podsumowanie Ostatecznego Modelu
+  summary(model_wsteczny)
+  
+  # Wypisanie finalnej formuły (zmiennych w modelu)
+  print(formula(model_wsteczny))
