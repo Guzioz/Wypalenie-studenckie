@@ -1,22 +1,74 @@
 # --- Wczytywanie danych ---
 library(readxl)
-ankieta <- read_excel("Wypalenie-wsrod-osob-studiujacych-2025-05-09.xlsx")
+ankieta <- read_xlsx("Wypalenie-wsrod-osob-studiujacych-2025-05-09.xlsx")
 ankieta <- data.frame(ankieta)
 
-# --- Pakiety ---
-required_packages <- c("dplyr", "ggplot2", "finalfit", "VIM", "validate", 
+## --- Pakiety ---
+required_packages <- c("dplyr", "ggplot2", "finalfit", "VIM", "validate",
                        "errorlocate", "tidyverse", "ggcorrplot", "forcats",
                        "ggthemes", "dlookr", "editrules", "hrbrthemes", "plotly",
                        "ISLR", "gapminder", "kableExtra", "ggstatsplot", "gtsummary",
-                       "readr", "rmarkdown", "moments", "knitr", "writexl")
+                       "readr", "rmarkdown", "moments", "knitr", "writexl", "caret")
 
 install_if_missing <- function(pkg) {
   if (!requireNamespace(pkg, quietly = TRUE)) install.packages(pkg)
 }
-sapply(required_packages, install_if_missing)
-lapply(required_packages, library, character.only = TRUE)
 
+# 1. Instalacja wszystkich brakujących pakietów
+sapply(required_packages, install_if_missing)
+
+# 2. Ładowanie pakietów do środowiska globalnego
+# Używamy pętli for dla pewności, że każdy pakiet jest załadowany jawnie.
+for (pkg in required_packages) {
+  # suppressMessages i suppressWarnings ukrywają długie komunikaty powitalne
+  suppressMessages(suppressWarnings(library(pkg, character.only = TRUE)))
+}
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+### ONE HOT ENCODING
+
+# Usuwamy kolumny, które się powtarzają -czyli kończą się na "wartosc"
+ankieta <- ankieta %>%
+  select(-ends_with("wartość"))
+
+# Wybór TYLKO kolumn kategorycznych, które mają być zakodowane
+dane_kategoryczne <- ankieta %>%
+  select(where(is.factor) | where(is.character))
+# Oblicz liczbę unikalnych poziomów dla każdej kolumny
+unikalne_poziomy <- sapply(dane_kategoryczne, n_distinct)
+
+# Zidentyfikuj nazwy kolumn, gdzie liczba unikalnych wartości wynosi 1
+kolumny_do_usuniecia <- names(unikalne_poziomy[unikalne_poziomy <= 1])
+
+# Usuń te kolumny z oryginalnej ramki danych
+dane_kategoryczne <- dane_kategoryczne %>%
+  select(-all_of(kolumny_do_usuniecia))
+
+# Wybór TYLKO kolumn numerycznych, które mają pozostać bez zmian
+dane_numeryczne <- ankieta %>%
+  select(where(is.numeric))
+
+# A. UTWORZENIE OBIEKTU TRANSFORMUJĄCEGO
+# Formuła: '~ .' oznacza "użyj wszystkich kolumn w danych_kategoryczne"
+dmy_obj <- dummyVars(
+  formula = ~ ., 
+  data = dane_kategoryczne, 
+  fullRank = FALSE # Pełne kodowanie One-Hot (bez usuwania jednej kategorii jako bazowej)
+)
+
+# B. WYKONANIE TRANSFORMACJI
+# Transformacja DANYCH KATEGORYCZNYCH
+one_hot_encoded_macierz <- predict(dmy_obj, newdata = dane_kategoryczne)
+
+# Konwersja macierzy na ramkę danych
+one_hot_encoded_df <- as.data.frame(one_hot_encoded_macierz)
+
+# C. SCALENIE
+# Połącz kolumny numeryczne (dane_numeryczne) z nowo zakodowanymi kolumnami (one_hot_encoded_df)
+ankieta<- bind_cols(ankieta, one_hot_encoded_df)
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # --- Czyszczenie danych ---
+
 # Usuń kolumny, które są w całości NA
 ankieta <- ankieta[, colSums(!is.na(ankieta)) > 0]
 
@@ -31,6 +83,11 @@ ankieta <- ankieta[ankieta[[1]] != "Nie", ]
 # Usuń wiersze z NA w 11. kolumnie
 ankieta <- ankieta[!is.na(ankieta[[11]]), ]
 ankieta <- hotdeck(ankieta)
+# Usuń kolumny kończące się na "imp" - które są niepotrzebne
+ankieta <- ankieta %>%
+  select(-ends_with("imp"))
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+  ### OBLICZANIE WYPALENIA
 #sumowanie wartości dla wypalenia emocjonalnego
 ankieta$wyczerpanie_emocjonalne <- rowSums(ankieta[, c(
   "Jak.bardzo.czujesz.się.przytłoczony.nadmiarem.obowiązków.",
@@ -90,6 +147,8 @@ ankieta$Wyczerpanie.studenta <- mapply(
   ankieta$satysfakcja_z_osiagniec
 )
 table(ankieta$Wyczerpanie.studenta)
+#-------------------------------------------------------------------------------------------------------------------------------------------------------
+  ### WIZUALIZACJE
 
 ggplot(ankieta, aes(x = Wyczerpanie.studenta,
                  fill = as.factor(Czy.uważasz.że.masz.tendencje.do.przepracowywania.się.))) +
@@ -590,64 +649,121 @@ ggplot(ankieta, aes(x = Jak.oceniasz.trudność.twojego.kierunku., y = depersona
     title = "The relationship between the difficulty of the field of study and depersonalization"
   )+
   theme_minimal() 
------------------------------------------------------------------------------------------------------------------------------------------------------
-  ### ONE HOT ENCODING
+#-----------------------------------------------------------------------------------------------------------------------------------------------------
+### MODELOWANIE
+#---------------------------------------------------------------------------------------------------------------------------------------------------------
+# Wymagany pakiet do czyszczenia nazw
+install.packages("janitor")
+library(janitor) 
 
-install.packages("caret")
-library(caret)
-
-# Usuwamy kolumny, które się powtarzają -czyli kończą się na "wartosc"
+# --- Krok 0: Oczyszczenie Nazw Kolumn ---
+# To usunie spacje, myślniki i inne znaki z nazw kolumn
 ankieta <- ankieta %>%
-  select(-ends_with("wartość"))
-
-# Wybór TYLKO kolumn kategorycznych, które mają być zakodowane
-dane_kategoryczne <- ankieta %>%
-  select(where(is.factor) | where(is.character))
-
-# Usuń te kolumny z oryginalnej ramki danych
-dane_kategoryczne <- dane_kategoryczne %>%
-  select(-all_of(kolumny_do_usuniecia))
-
-# Wybór TYLKO kolumn numerycznych, które mają pozostać bez zmian
-dane_numeryczne <- ankieta %>%
-  select(where(is.numeric))
-
-# A. UTWORZENIE OBIEKTU TRANSFORMUJĄCEGO
-# Formuła: '~ .' oznacza "użyj wszystkich kolumn w danych_kategoryczne"
-dmy_obj <- dummyVars(
-  formula = ~ ., 
-  data = dane_kategoryczne, 
-  fullRank = FALSE # Pełne kodowanie One-Hot (bez usuwania jednej kategorii jako bazowej)
-)
-
-# B. WYKONANIE TRANSFORMACJI
-# Transformacja DANYCH KATEGORYCZNYCH
-one_hot_encoded_macierz <- predict(dmy_obj, newdata = dane_kategoryczne)
-
-# Konwersja macierzy na ramkę danych
-one_hot_encoded_df <- as.data.frame(one_hot_encoded_macierz)
-
-# C. SCALENIE
-# Połącz kolumny numeryczne (dane_numeryczne) z nowo zakodowanymi kolumnami (one_hot_encoded_df)
-ankieta<- bind_cols(ankieta, one_hot_encoded_df)
-
----------------------------------------------------------------------------------------------------------------------------------------------------------
-  ### MODELOWANIE
+  janitor::clean_names()
 # Wybór TYLKO kolumn numerycznych, które mają pozostać bez zmian
   model_data <- ankieta %>%
-  select(where(is.numeric))  
-  # 1. Utworzenie Pełnego Modelu (Full Model)
-  # Wzór 'mpg ~ .' oznacza, że 'mpg' jest zmienną zależną, a wszystkie inne kolumny są predyktorami.
-  pelny_model <- lm(Wyczerpanie_num ~ ., data = model_data)
+      select(where(is.numeric) & !matches("wyczerpanie_emocjonalne|satysfakcja_z_osiagniec|depersonalizacja"), "wyczerpanie_studenta")  
 
-# Podsumowanie pełnego modelu (opcjonalnie)
-  summary(pelny_model)
+# Wymagany pakiet do Random Forest
+install.packages("randomForest")
+library(randomForest)
 
-  # 2. Wykonanie Eliminacji Wstecznej
-  # Kryterium domyślne to minimalizacja AIC
-  model_wsteczny <- step(pelny_model, direction = "backward")
-  # 3. Podsumowanie Ostatecznego Modelu
-  summary(model_wsteczny)
-  
-  # Wypisanie finalnej formuły (zmiennych w modelu)
-  print(formula(model_wsteczny))
+# Zakładam, że zmienna zależna jest już faktorem (jeśli nie, zrób to):
+model_data$wyczerpanie_studenta <- as.factor(model_data$wyczerpanie_studenta)
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+### RANDOM FOREST
+#--------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Budowa pełnego modelu Random Forest
+full_rf_model <- randomForest(
+  wyczerpanie_studenta ~ .,
+  data = model_data,
+  ntree = 500, # Liczba drzew
+  importance = TRUE
+)
+# Wyodrębnienie ważności zmiennych
+importance_df <- as.data.frame(importance(full_rf_model, type = 2)) # type=2 to MeanDecreaseGini
+importance_df$Variable <- rownames(importance_df)
+print(importance_df)
+# Sortowanie i wybór top N zmiennych
+top_n_importance <- importance_df %>%
+  arrange(desc(MeanDecreaseGini)) %>%
+  slice_head(n = 10) # Przykładowo, wybieram 10 najbardziej istotnych
+
+# Wypisz 10 najważniejszych predyktorów
+print(top_n_importance)
+
+# Wyodrębnienie nazw najlepszych predyktorów
+best_predictors <- top_n_importance$Variable
+
+# Utworzenie nowej formuły modelu tylko z najlepszymi zmiennymi
+# paste0() i as.formula() pomagają w dynamicznym tworzeniu formuły
+new_formula <- as.formula(paste("wyczerpanie_studenta ~", paste(best_predictors, collapse = " + ")))
+
+# Budowa uproszczonego modelu Random Forest
+simplified_rf_model <- randomForest(
+  new_formula,
+  data = model_data,
+  ntree = 500
+)
+
+# Porównaj błąd obu modeli (Out-of-Bag Error)
+print("Pełny model:")
+print(full_rf_model)
+print("Uproszczony model (Top 10):")
+print(simplified_rf_model)
+
+#--------------------------------------------------------------------------------------------------------------------------------------------
+### MODEL REGRESJI LOGISTYCZNEJ WIELOMIANOWEJ
+#--------------------------------------------------------------------------------------------------------------------------------------------
+
+# Wymagany pakiet
+# install.packages("nnet") # Odkomentuj, jeśli nie masz zainstalowanego
+install.packages("nnet")
+library(nnet)
+# Budowa pełnego modelu wielomianowego
+# Wyczerpanie.studenta ~ . oznacza, że wszystkie inne kolumny są predyktorami
+full_multinom_model <- multinom(
+  wyczerpanie_studenta ~ ., 
+  data = model_data,
+  MaxNWts = 2000 # Zwiększ, jeśli dostaniesz ostrzeżenie o zbyt małej liczbie wag
+)
+
+# Podsumowanie modelu (często wyświetla się tylko część)
+summary(full_multinom_model)
+
+# Wymagany pakiet do selekcji krokowej (zazwyczaj MASS jest wczytane)
+library(MASS) 
+
+# Selekcja wsteczna (Backward Elimination)
+# direction="backward" usuwa predyktory, które najmniej obniżają AIC
+simplified_multinom_model <- step(
+  full_multinom_model, 
+  direction = "backward",
+  trace = FALSE # Ukrywa iteracyjne komunikaty
+)
+
+# Wyświetlenie formuły najlepszego modelu
+print("Ostateczna formuła po selekcji wstecznej:")
+print(simplified_multinom_model$call$formula)
+
+# Podsumowanie uproszczonego modelu
+summary(simplified_multinom_model)
+
+print(paste("AIC modelu pełnego:", full_multinom_model$AIC))
+print(paste("AIC modelu uproszczonego:", simplified_multinom_model$AIC))
+
+# Predykcja na danych treningowych
+predykcje <- predict(simplified_multinom_model, newdata = model_data)
+
+# Macierz pomyłek
+multinom_confusion_matrix <- table(
+  "Oczekiwane" = model_data$wyczerpanie_studenta, 
+  "Przewidziane" = predykcje
+)
+
+print("Macierz pomyłek dla modelu wielomianowego po selekcji wstecznej:")
+print(multinom_confusion_matrix)
+
+# Obliczanie ogólnej dokładności (accuracy)
+dokladnosc <- sum(diag(multinom_confusion_matrix)) / sum(multinom_confusion_matrix)
+print(paste("Dokładność modelu (na danych treningowych):", round(dokladnosc, 4)))
