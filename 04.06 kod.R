@@ -1,28 +1,23 @@
 # --- Wczytywanie danych ---
 library(readxl)
-ankieta <- read_xlsx("Wypalenie-wsrod-osob-studiujacych-2025-05-09.xlsx")
+ankieta <- read_xlsx("Wypalenie-wsrod-osob-studiujacych-2025-11-22.xlsx")
 ankieta <- data.frame(ankieta)
 
-## --- Pakiety ---
+# 1. Lista bibliotek do instalacji
 required_packages <- c("dplyr", "ggplot2", "finalfit", "VIM", "validate",
                        "errorlocate", "tidyverse", "ggcorrplot", "forcats",
                        "ggthemes", "dlookr", "editrules", "hrbrthemes", "plotly",
                        "ISLR", "gapminder", "kableExtra", "ggstatsplot", "gtsummary",
                        "readr", "rmarkdown", "moments", "knitr", "writexl", "caret")
 
-install_if_missing <- function(pkg) {
-  if (!requireNamespace(pkg, quietly = TRUE)) install.packages(pkg)
-}
+new_packages <- required_packages[!(required_packages %in% installed.packages()[,"Package"])]
 
-# 1. Instalacja wszystkich brakujących pakietów
-sapply(required_packages, install_if_missing)
+if(length(new_packages)) install.packages(new_packages, repos = "https://cloud.r-project.org/")
 
-# 2. Ładowanie pakietów do środowiska globalnego
-# Używamy pętli for dla pewności, że każdy pakiet jest załadowany jawnie.
-for (pkg in required_packages) {
-  # suppressMessages i suppressWarnings ukrywają długie komunikaty powitalne
-  suppressMessages(suppressWarnings(library(pkg, character.only = TRUE)))
-}
+# Komunikat końcowy
+message("Gotowe. Wszystkie pakiety są zainstalowane.")
+# 4. Załaduj wszystkie pakiety
+lapply(required_packages, library, character.only = TRUE)
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ### ONE HOT ENCODING
 
@@ -163,32 +158,32 @@ ggplot(ankieta, aes(x = Wyczerpanie.studenta,
   theme_minimal()
 
 # ANOVA: Wyczerpanie emocjonalne*
-anova_emocjonalne <- aov(wyczerpanie_emocjonalne ~ Płeć.wartość, data = ankieta)
+anova_emocjonalne <- aov(wyczerpanie_emocjonalne ~ Płeć, data = ankieta)
 summary(anova_emocjonalne)
 
 # ANOVA: Depersonalizacja
-anova_depersonalizacja <- aov(depersonalizacja ~ Płeć.wartość, data = ankieta)
+anova_depersonalizacja <- aov(depersonalizacja ~ Płeć, data = ankieta)
 summary(anova_depersonalizacja)
 
 # ANOVA: Satysfakcja z osiągnięć
-anova_satysfakcja <- aov(satysfakcja_z_osiagniec ~ Płeć.wartość, data = ankieta)
+anova_satysfakcja <- aov(satysfakcja_z_osiagniec ~ Płeć, data = ankieta)
 summary(anova_satysfakcja)
 
 
 # Wyczerpanie emocjonalne
-ggplot(ankieta, aes(x = Płeć.wartość, y = wyczerpanie_emocjonalne)) +
+ggplot(ankieta, aes(x = Płeć, y = wyczerpanie_emocjonalne)) +
   geom_boxplot(fill = "lightcoral") +
   labs(title = "Wyczerpanie emocjonalne a płeć", x = "Płeć", y = "Wyczerpanie emocjonalne") +
   theme_minimal()
 
 # Depersonalizacja
-ggplot(ankieta, aes(x = Płeć.wartość, y = depersonalizacja)) +
+ggplot(ankieta, aes(x = Płeć, y = depersonalizacja)) +
   geom_boxplot(fill = "lightblue") +
   labs(title = "Depersonalizacja a płeć", x = "Płeć", y = "Depersonalizacja") +
   theme_minimal()
 
 # Satysfakcja z osiągnięć
-ggplot(ankieta, aes(x = Płeć.wartość, y = satysfakcja_z_osiagniec)) +
+ggplot(ankieta, aes(x = Płeć, y = satysfakcja_z_osiagniec)) +
   geom_boxplot(fill = "lightgreen") +
   labs(title = "Satysfakcja z osiągnięć a płeć", x = "Płeć", y = "Satysfakcja z osiągnięć") +
   theme_minimal()
@@ -581,6 +576,7 @@ ggplot(df_procent, aes(x = Gender, y = procent, fill = Burnout)) +
 write.csv(ankieta, file = "ankieta.csv", row.names = FALSE)
 
 #gghistostats dla wyczerpanie_emocjonalne
+install.packages("ggstatsplot")
 library(ggstatsplot)
 library(ggplot2)
 gghistostats(
@@ -717,7 +713,7 @@ print(simplified_rf_model)
 #--------------------------------------------------------------------------------------------------------------------------------------------
 
 # Wymagany pakiet
-# install.packages("nnet") # Odkomentuj, jeśli nie masz zainstalowanego
+# install.packages("nnet")
 install.packages("nnet")
 library(nnet)
 # Budowa pełnego modelu wielomianowego
@@ -767,3 +763,418 @@ print(multinom_confusion_matrix)
 # Obliczanie ogólnej dokładności (accuracy)
 dokladnosc <- sum(diag(multinom_confusion_matrix)) / sum(multinom_confusion_matrix)
 print(paste("Dokładność modelu (na danych treningowych):", round(dokladnosc, 4)))
+
+
+
+
+
+
+
+
+# ----Inaczej zbudwany model regresji logistycznej wielomianowej z podziałem na dane treningowe i testowe------------------------------------------
+
+# Wymagane pakiety
+# install.packages("nnet")
+# install.packages("caret") # Potrzebny do ładnego podziału danych
+library(nnet)
+library(MASS) # Do funkcji step()
+library(caret) # Do funkcji createDataPartition()
+
+# --- KROK 0: Przygotowanie danych (Podział na treningowe i testowe) ---
+# Zakładam, że Twoja główna ramka danych nazywa się 'model_data'.
+
+set.seed(123) # Ustawiamy ziarno losowości, żeby wyniki były powtarzalne
+
+# Tworzymy indeksy do podziału (np. 80% na trening, 20% na test)
+# Funkcja createDataPartition dba o to, żeby proporcje kategorii w zmiennej wynikowej były zachowane.
+trainIndex <- createDataPartition(model_data$wyczerpanie_studenta, p = .8,
+                                  list = FALSE,
+                                  times = 1)
+
+# Tworzymy fizycznie dwa zbiory danych
+train_data <- model_data[ trainIndex,] # Dane do nauki (80%)
+test_data  <- model_data[-trainIndex,] # Dane do sprawdzenia (20%)
+
+message(paste("Liczba obserwacji treningowych:", nrow(train_data)))
+message(paste("Liczba obserwacji testowych:", nrow(test_data)))
+message("--------------------------------------------------")
+
+
+# --- KROK 1: Budowa modelu na DANYCH TRENINGOWYCH ---
+
+# Budowa pełnego modelu wielomianowego (używamy train_data!)
+full_multinom_model <- multinom(
+  wyczerpanie_studenta ~ .,
+  data = train_data, # ZMIANA: model uczy się tylko na treningowych
+  MaxNWts = 5000, # Zwiększyłem profilaktycznie
+  trace = FALSE # Ukrywa komunikaty o iteracjach
+)
+
+# Selekcja wsteczna (Backward Elimination) na modelu treningowym
+simplified_multinom_model <- step(
+  full_multinom_model,
+  direction = "backward",
+  trace = FALSE # Ukrywa iteracyjne komunikaty
+)
+
+# Wyświetlenie formuły najlepszego modelu
+print("Ostateczna formuła po selekcji wstecznej:")
+print(simplified_multinom_model$call$formula)
+
+
+# --- KROK 2: Ocena na danych TRENINGOWYCH ---
+
+message("\n--- WYNIKI NA ZBIORZE TRENINGOWYM (NAUKA) ---")
+# Predykcja na danych treningowych
+train_predykcje <- predict(simplified_multinom_model, newdata = train_data)
+
+# Macierz pomyłek treningowa
+train_confusion_matrix <- table(
+  "Oczekiwane (Train)" = train_data$wyczerpanie_studenta,
+  "Przewidziane (Train)" = train_predykcje
+)
+print(train_confusion_matrix)
+
+# Dokładność treningowa
+train_dokladnosc <- sum(diag(train_confusion_matrix)) / sum(train_confusion_matrix)
+print(paste("Dokładność (Train):", round(train_dokladnosc, 4),
+            "czyli", round(train_dokladnosc*100, 2), "%"))
+
+
+# --- KROK 3: Ocena na danych TESTOWYCH (TO JEST NOWE) ---
+
+message("\n--- WYNIKI NA ZBIORZE TESTOWYM (EGZAMIN) ---")
+message("To jest najważniejszy wynik - jak model radzi sobie z nowymi danymi.")
+
+# Predykcja na danych TESTOWYCH
+# Używamy modelu nauczonego na train, ale każemy mu przewidywać dla test_data
+test_predykcje <- predict(simplified_multinom_model, newdata = test_data)
+
+# Macierz pomyłek TESTOWA
+test_confusion_matrix <- table(
+  "Oczekiwane (Test)" = test_data$wyczerpanie_studenta,
+  "Przewidziane (Test)" = test_predykcje
+)
+print(test_confusion_matrix)
+
+# Dokładność TESTOWA (Accuracy)
+test_dokladnosc <- sum(diag(test_confusion_matrix)) / sum(test_confusion_matrix)
+print(paste("DOKŁADNOŚĆ MODELU NA DANYCH TESTOWYCH:", round(test_dokladnosc, 4)))
+
+# Procentowy wynik
+wynik_procentowy <- round(test_dokladnosc * 100, 2)
+message(paste(">>> Model działa poprawnie w", wynik_procentowy, "% na nowych danych. <<<"))
+
+
+
+
+#---------------------------------------------------------------------------------------------
+# --- ANALIZA STATYSTYCZNA NAJWAŻNIEJSZYCH ZMIENNYCH ---
+#---------------------------------------------------------------------------------------------
+
+# Upewnij się, że zmienna grupująca jest faktorem
+model_data$wyczerpanie_studenta <- as.factor(model_data$wyczerpanie_studenta)
+
+# Tworzymy pustą ramkę danych na wyniki
+stat_results <- data.frame(
+  Zmienna = character(),
+  Typ_Testu = character(),
+  P_value = numeric(),
+  Istotne_statystycznie = character(),
+  stringsAsFactors = FALSE
+)
+
+message("Rozpoczynam analizę statystyczną dla top 10 zmiennych...")
+
+# Pętla po każdej zmiennej z listy najlepszych predyktorów
+for (var_name in best_predictors) {
+  
+  # Pobieramy dane dla aktualnej zmiennej
+  current_var_data <- model_data[[var_name]]
+  
+  # Sprawdzamy typ zmiennej i dobieramy test
+  if (is.numeric(current_var_data)) {
+    # --- TEST ANOVA dla zmiennych numerycznych ---
+    test_type <- "ANOVA"
+    
+    # Formuła: Zmienna_numeryczna ~ Grupa_kategoryczna
+    formula_aov <- as.formula(paste(var_name, "~ wyczerpanie_studenta"))
+    
+    # Wykonanie testu
+    aov_result <- aov(formula_aov, data = model_data)
+    
+    # Wyciągnięcie p-value (jest w pierwszym wierszu, 5 kolumnie summary)
+    p_val <- summary(aov_result)[[1]][["Pr(>F)"]][1]
+    
+  } else if (is.factor(current_var_data) || is.character(current_var_data)) {
+    # --- TEST CHI-KWADRAT dla zmiennych kategorycznych ---
+    test_type <- "Chi-kwadrat"
+    
+    # Tworzymy tabelę krzyżową
+    contingency_table <- table(current_var_data, model_data$wyczerpanie_studenta)
+    
+    # Wykonanie testu (suppressWarnings na wypadek małych liczebności w komórkach)
+    chisq_result <- suppressWarnings(chisq.test(contingency_table))
+    
+    # Wyciągnięcie p-value
+    p_val <- chisq_result$p.value
+    
+  } else {
+    # Na wypadek innego typu danych
+    test_type <- "Nieznany typ"
+    p_val <- NA
+  }
+  
+  # Interpretacja istotności (przyjmujemy standardowy poziom alpha = 0.05)
+  significance <- ifelse(!is.na(p_val) & p_val < 0.05, "TAK", "NIE")
+  
+  # Dodanie wyniku do tabeli zbiorczej
+  stat_results[nrow(stat_results) + 1, ] <- list(
+    var_name,
+    test_type,
+    p_val,
+    significance
+  )
+}
+
+# Formatowanie p-value, żeby było czytelne (np. < 0.0001 zamiast notacji naukowej e-16)
+stat_results$P_value_formatted <- scales::pvalue(stat_results$P_value, accuracy = 0.0001)
+
+# Wyświetlenie końcowej tabeli wyników
+message("\n--- WYNIKI ANALIZY STATYSTYCZNEJ (ANOVA / Chi-kwadrat) ---")
+print(stat_results[, c("Zmienna", "Typ_Testu", "P_value_formatted", "Istotne_statystycznie")])
+
+message("\nInterpretacja: 'TAK' oznacza, że wartości tej zmiennej różnią się istotnie między grupami wyczerpania (p < 0.05).")
+#--------------------------------------------------------------------------------------------------------------------------------------------
+# WIZUALIZACJE
+#--------------------------------------------------------------------------------------------------------------------------------------------
+
+# --- 1. SETUP I PAKIETY ---
+library(ggplot2)
+library(dplyr)
+# install.packages("ggstatsplot") # Jeśli nie masz
+library(ggstatsplot)
+
+# --- 2. PRZYGOTOWANIE DANYCH (TŁUMACZENIE NA ANGIELSKI) ---
+
+# KROK KLUCZOWY: Zamiana poziomów zmiennej celu na angielski i ustalenie kolejności
+# Zakładam, że Twoje dane to nadal 'model_data'
+model_data_eng <- model_data
+
+# Zamiana na angielski (Low, Moderate, High) i ustawienie jako ordered factor
+model_data_eng$wyczerpanie_studenta <- factor(
+  model_data_eng$wyczerpanie_studenta,
+  # UWAGA: Upewnij się, że te polskie nazwy po lewej zgadzają się z Twoimi danymi!
+  levels = c("niskie", "umiarkowane", "wysokie"),
+  labels = c("Low", "Moderate", "High"),
+  ordered = TRUE
+)
+
+# --- 3. SŁOWNIK TŁUMACZEŃ ZMIENNYCH ---
+translation_dict <- c(
+  "jak_bardzo_czujesz_sie_przytloczony_nadmiarem_obowiazkow" = "Feeling Overwhelmed by Duties",
+  "czy_odczuwasz_przewlekly_stres" = "Chronic Stress Perception",
+  "jak_czesto_czujesz_sie_zmeczony_a_fizycznie" = "Frequency of Physical Fatigue",
+  "jak_czesto_czujesz_sie_emocjonalnie_wyczerpany" = "Frequency of Emotional Exhaustion",
+  "jak_czesto_uwazasz_ze_kwestionujesz_swoje_decyzje" = "Frequency of Questioning Own Decisions",
+  "czy_uwazasz_ze_masz_tendencje_do_przepracowywania_sie" = "Tendency to Overwork",
+  "czy_czujesz_ze_masz_wsparcie_w_swoich_znajomych_ze_studiow" = "Support from Uni Friends",
+  "jak_czesto_odkladasz_zadania_na_pozniej" = "Frequency of Procrastination",
+  "czy_uwazasz_ze_praca_w_grupie_sprawia_ci_trudnosc" = "Difficulty Working in Groups",
+  "czy_uwazasz_ze_masz_wsparcie_u_rodziny_i_lub_swoich_znajomych_spoza_studiow" = "Support from Family/Outside Friends"
+)
+
+# Lista zmiennych do pętli
+vars_to_plot <- names(translation_dict)
+
+# --- 4. DEFINICJA ZIELONEJ PALETY KOLORÓW ---
+green_palette <- c("Low" = "#A1D99B",      # Jasna zieleń
+                   "Moderate" = "#41AB5D", # Średnia zieleń
+                   "High" = "#006837")     # Ciemna, intensywna zieleń
+
+
+# --- 5. PĘTLA GENERUJĄCA WYKRESY (POPRAWIONA) ---
+
+plot_list_eng <- list()
+message("Generating English violin plots with ggstatsplot (Green theme)...")
+
+for (var_pol_name in vars_to_plot) {
+  
+  # Pobranie angielskiego tytułu ze słownika
+  english_title <- translation_dict[[var_pol_name]]
+  
+  # Generowanie wykresu
+  p <- ggbetweenstats(
+    data = model_data_eng,
+    x = wyczerpanie_studenta,
+    y = !!sym(var_pol_name),
+    type = "parametric",
+    plot.type = "violin",
+    
+    # --- Ustawienia Angielskie ---
+    xlab = "Student Exhaustion Level",
+    ylab = english_title,
+    title = paste("Distribution of:", english_title),
+    subtitle = "Comparison across exhaustion groups (ANOVA + Violin Plot)",
+    
+    # --- Estetyka ---
+    ggtheme = ggplot2::theme_minimal(),
+    results.subtitle = FALSE,
+    pairwise.display = "significant",
+    p.adjust.method = "bonferroni",
+    
+    # --- Kolory i kształty (POPRAWIONE) ---
+    point.args = list(alpha = 0.2, size = 1.8, position = position_jitterdodge(dodge.width = 0.6)),
+    violin.args = list(width = 0.5, alpha = 0.7),
+    
+    # --- TU BYŁ BŁĄD - POPRAWKA: ---
+    # Zmieniamy outlier.shape = NA na outlier.color = "transparent"
+    boxplot.args = list(width = 0.15, alpha = 0.8, outlier.color = "transparent")
+    
+  ) +
+    # MANUALNE NADPISANIE KOLORÓW NA ZIELONE
+    scale_color_manual(values = green_palette) +
+    scale_fill_manual(values = green_palette) +
+    theme(
+      plot.title = element_text(face = "bold", size = 13),
+      axis.title = element_text(face = "bold")
+    )
+  
+  plot_list_eng[[english_title]] <- p
+}
+
+message("Gotowe! Wyświetlam zielone wykresy w oknie 'Plots'.")
+
+# Wyświetlenie wykresów
+for (plot_name in names(plot_list_eng)) {
+  print(plot_list_eng[[plot_name]])
+  # Sys.sleep(1) # Opcjonalne opóźnienie
+}
+
+# --- 5. PĘTLA GENERUJĄCA BOXPLOTY ---
+
+plot_list_box <- list()
+message("Generating English BOXPLOTS with ggstatsplot (Green theme)...")
+
+for (var_pol_name in vars_to_plot) {
+  
+  english_title <- translation_dict[[var_pol_name]]
+  
+  # Generowanie wykresu
+  p <- ggbetweenstats(
+    data = model_data_eng,
+    x = wyczerpanie_studenta,
+    y = !!sym(var_pol_name),
+    type = "parametric",
+    
+    # --- ZMIANA KLUCZOWA: TYP WYKRESU NA "BOX" ---
+    plot.type = "box",
+    
+    # --- Ustawienia Angielskie ---
+    xlab = "Student Exhaustion Level",
+    ylab = english_title,
+    title = paste("Distribution of:", english_title),
+    subtitle = "Comparison across exhaustion groups (ANOVA + Box Plot)",
+    
+    # --- Estetyka ---
+    ggtheme = ggplot2::theme_minimal(),
+    results.subtitle = TRUE,
+    pairwise.display = "significant",
+    p.adjust.method = "bonferroni",
+    
+    # --- Kolory i kształty dla BOXPLOTA ---
+    # Punkty (jitter) trochę wyraźniejsze
+    point.args = list(alpha = 0.4, size = 2, position = position_jitterdodge(dodge.width = 0.6)),
+    # Ustawienia samego pudełka (trochę przezroczyste)
+    # Ustawiamy outlier.color na transparent, bo i tak mamy punkty jitter
+    boxplot.args = list(alpha = 0.7, width = 0.5, outlier.color = "transparent")
+    
+  ) +
+    # MANUALNE NADPISANIE KOLORÓW NA ZIELONE
+    scale_color_manual(values = green_palette) +
+    scale_fill_manual(values = green_palette) +
+    theme(
+      plot.title = element_text(face = "bold", size = 13),
+      axis.title = element_text(face = "bold")
+    )
+  
+  plot_list_box[[english_title]] <- p
+}
+
+message("Gotowe! Wyświetlam zielone boxploty w oknie 'Plots'.")
+
+# Wyświetlenie wykresów
+for (plot_name in names(plot_list_box)) {
+  print(plot_list_box[[plot_name]])
+  # Sys.sleep(1) # Opcjonalne opóźnienie
+}
+
+
+library(dplyr)
+library(tidyr)
+
+# --- 2. PRZYGOTOWANIE DANYCH ---
+# Zakładam, że masz w pamięci 'model_data' oraz listę 'best_predictors'
+# i słownik 'translation_dict' z poprzednich kroków.
+
+# a) Wybieramy tylko potrzebne kolumny
+profile_data <- model_data %>%
+  dplyr::select(wyczerpanie_studenta, all_of(best_predictors))
+
+# b) Przygotowanie zmiennej grupującej (angielski + porządek)
+profile_data$wyczerpanie_studenta <- factor(
+  profile_data$wyczerpanie_studenta,
+  levels = c("niskie", "umiarkowane", "wysokie"),
+  labels = c("Low", "Moderate", "High"),
+  ordered = TRUE
+)
+
+# c) STANDARYZACJA (Z-score) zmiennych numerycznych
+# To kluczowe, żeby porównać zmienne o różnych skalach na jednej osi.
+# Odejmujemy średnią i dzielimy przez odchylenie standardowe.
+profile_data_scaled <- profile_data %>%
+  mutate(across(where(is.numeric), scale))
+
+# d) Obliczanie średnich dla każdej grupy
+plot_data_summary <- profile_data_scaled %>%
+  group_by(wyczerpanie_studenta) %>%
+  summarise(across(everything(), mean, na.rm = TRUE)) %>%
+  # e) Transformacja do formatu "długiego" (tidy data) dla ggplot2
+  pivot_longer(
+    cols = -wyczerpanie_studenta,
+    names_to = "variable_polish",
+    values_to = "mean_z_score"
+  )
+
+# f) Dodanie angielskich nazw ze słownika
+plot_data_summary$variable_eng <- translation_dict[plot_data_summary$variable_polish]
+
+
+# --- 3. DEFINICJA ZIELONEJ PALETY (spójna z poprzednimi) ---
+green_palette <- c("Low" = "#A1D99B", "Moderate" = "#41AB5D", "High" = "#006837")
+
+# --- 4. RYSOWANIE WYKRESU PROFILOWEGO ---
+ggplot(plot_data_summary, aes(x = mean_z_score, y = reorder(variable_eng, mean_z_score), color = wyczerpanie_studenta)) +
+  # Dodajemy linię pionową na zerze (średnia populacji)
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  # Dodajemy linie łączące kropki dla jednej zmiennej (pokazują "rozstęp" między grupami)
+  geom_line(aes(group = variable_eng), color = "gray80", size = 0.8) +
+  # Dodajemy główne punkty (średnie)
+  geom_point(size = 4) +
+  
+  # --- Estetyka i Opisy ---
+  scale_color_manual(values = green_palette, name = "Exhaustion Level") +
+  labs(
+    title = "Multivariate Profile of Student Exhaustion Groups",
+    subtitle = "Comparison of standardized mean scores across top predictors",
+    x = "Standardized Mean Score (Z-score)\n(Negative = Below Average | 0 = Average | Positive = Above Average)",
+    y = NULL # Usuwamy tytuł osi Y, bo etykiety wystarczą
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(color = "gray30"),
+    axis.text.y = element_text(size = 10, color = "black"), # Wyraźne nazwy zmiennych
+    legend.position = "top", # Legenda na górze
+    panel.grid.major.y = element_line(color = "gray90") # Delikatne linie poziome
+  )
