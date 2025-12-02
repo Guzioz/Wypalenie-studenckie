@@ -644,7 +644,7 @@ ggplot(ankieta, aes(x = Jak.oceniasz.trudność.twojego.kierunku., y = depersona
     y = "Depersonalization",
     title = "The relationship between the difficulty of the field of study and depersonalization"
   )+
-  theme_minimal() 
+  theme_minimal()
 #-----------------------------------------------------------------------------------------------------------------------------------------------------
 ### MODELOWANIE
 #---------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1056,7 +1056,7 @@ for (plot_name in names(plot_list_eng)) {
 plot_list_box <- list()
 message("Generating English BOXPLOTS with ggstatsplot (Green theme)...")
 
-for (var_pol_name in vars_to_plot) {
+for (var_pol_name in vars_to_plot) { 
   
   english_title <- translation_dict[[var_pol_name]]
   
@@ -1071,10 +1071,10 @@ for (var_pol_name in vars_to_plot) {
     plot.type = "box",
     
     # --- Ustawienia Angielskie ---
-    xlab = "Student Exhaustion Level",
+    xlab = "Student Burnout Level",
     ylab = english_title,
     title = paste("Distribution of:", english_title),
-    subtitle = "Comparison across exhaustion groups (ANOVA + Box Plot)",
+    subtitle = "Comparison across burnout groups (ANOVA + Box Plot)",
     
     # --- Estetyka ---
     ggtheme = ggplot2::theme_minimal(),
@@ -1165,7 +1165,7 @@ ggplot(plot_data_summary, aes(x = mean_z_score, y = reorder(variable_eng, mean_z
   # --- Estetyka i Opisy ---
   scale_color_manual(values = green_palette, name = "Exhaustion Level") +
   labs(
-    title = "Multivariate Profile of Student Exhaustion Groups",
+    title = "Multivariate Profile of Student Burnout Groups",
     subtitle = "Comparison of standardized mean scores across top predictors",
     x = "Standardized Mean Score (Z-score)\n(Negative = Below Average | 0 = Average | Positive = Above Average)",
     y = NULL # Usuwamy tytuł osi Y, bo etykiety wystarczą
@@ -1177,4 +1177,87 @@ ggplot(plot_data_summary, aes(x = mean_z_score, y = reorder(variable_eng, mean_z
     axis.text.y = element_text(size = 10, color = "black"), # Wyraźne nazwy zmiennych
     legend.position = "top", # Legenda na górze
     panel.grid.major.y = element_line(color = "gray90") # Delikatne linie poziome
+  )
+
+
+#---------------------------
+#Wykres mapy ciepła (heatmap) korelacji
+#---------------------------
+
+# --- 1. INSTALACJA I ŁADOWANIE PAKIETÓW ---
+# Jeśli nie masz pakietu ggalluvial, odkomentuj poniższą linię:
+# install.packages("ggalluvial")
+library(ggplot2)
+library(dplyr)
+install.packages("ggalluvial")
+library(ggalluvial)
+
+# --- 2. PRZYGOTOWANIE DANYCH ---
+# Zakładam, że 'model_data' jest w pamięci.
+
+# a) Przygotowanie zmiennych (porządek i tłumaczenie)
+alluvial_data <- model_data %>%
+  mutate(
+    # Uporządkowanie wyczerpania (kluczowe dla czytelności przepływu)
+    wyczerpanie_studenta = factor(
+      wyczerpanie_studenta,
+      levels = c("niskie", "umiarkowane", "wysokie"),
+      labels = c("Low", "Moderate", "High"),
+      ordered = TRUE
+    ),
+    # Upewnienie się, że Płeć jest faktorem (dostosuj nazwy poziomów jeśli masz inne!)
+    # Zakładam, że w danych masz np. 'Kobieta', 'Mężczyzna'.
+    # Jeśli masz 'Female', 'Male', zmień labels odpowiednio.
+    Gender = as.factor(plec) 
+  ) %>%
+  # b) Agregacja danych - liczymy ile jest osób w każdej kombinacji Płeć + Wyczerpanie
+  # To jest format potrzebny dla ggalluvial (frequency table)
+  count(Gender, wyczerpanie_studenta)
+
+
+# --- 3. DEFINICJA KOLORÓW ---
+# Zielona paleta dla przepływów (zgodna z poprzednimi wykresami)
+green_palette_flow <- c("Low" = "#A1D99B", 
+                        "Moderate" = "#41AB5D", 
+                        "High" = "#006837")
+
+# Opcjonalne: Kolory dla bloków Płci po lewej stronie (np. neutralne szarości lub wyróżniające)
+# Jeśli wolisz, żeby były szare, usuń argument 'fill = Gender' w geom_stratum dla axis1 poniżej.
+
+# --- 4. RYSOWANIE WYKRESU ALLUVIAL ---
+
+ggplot(alluvial_data,
+       aes(axis1 = Gender,               # Lewa oś: Płeć
+           axis2 = wyczerpanie_studenta, # Prawa oś: Wyczerpanie
+           y = n)) +                     # Grubość strumienia: Liczba osób (n)
+  
+  # a) Rysowanie przepływów (alluvia)
+  geom_alluvium(aes(fill = wyczerpanie_studenta), # Kolor strumienia zależy od celu (wyczerpania)
+                width = 1/12, alpha = 0.7, color = "white", size = 0.5) +
+  
+  # b) Rysowanie bloków kategorii (strata)
+  geom_stratum(width = 1/6, fill = "gray90", color = "gray30") +
+  
+  # c) Dodanie tekstów na blokach
+  geom_text(stat = "stratum", aes(label = after_stat(stratum)), size = 4, fontface = "bold") +
+  
+  # d) Skale i kolory
+  scale_x_discrete(limits = c("Gender", "Exhaustion Level"), expand = c(.05, .05)) +
+  scale_fill_manual(values = green_palette_flow, name = "Exhaustion Level") +
+  
+  # e) Opisy i motyw
+  labs(
+    title = "Gender Differences in Student Burnout Flow",
+    subtitle = "Visualizing how male and female student populations distribute across exhaustion levels",
+    y = "Number of Students" # Oś Y pokazuje teraz całkowitą liczbę
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 16),
+    plot.subtitle = element_text(color = "gray40", size = 12),
+    axis.text.x = element_text(face = "bold", size = 12, vjust = -1), # Podpisy osi na dole
+    axis.text.y = element_blank(), # Ukrywamy liczby na osi Y (bo grubości mówią same za siebie)
+    axis.ticks = element_blank(),
+    panel.grid = element_blank(), # Czyste tło bez siatki
+    legend.position = "bottom"
   )
