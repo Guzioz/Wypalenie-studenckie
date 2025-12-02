@@ -1181,83 +1181,157 @@ ggplot(plot_data_summary, aes(x = mean_z_score, y = reorder(variable_eng, mean_z
 
 
 #---------------------------
-#Wykres mapy ciepła (heatmap) korelacji
+#Wykres przepływów alluvial - Płeć a Wyczerpanie Studenta
 #---------------------------
 
-# --- 1. INSTALACJA I ŁADOWANIE PAKIETÓW ---
-# Jeśli nie masz pakietu ggalluvial, odkomentuj poniższą linię:
-# install.packages("ggalluvial")
+# --- 1. PAKIETY ---
 library(ggplot2)
 library(dplyr)
-install.packages("ggalluvial")
+# install.packages("ggalluvial") # Upewnij się, że masz ten pakiet
 library(ggalluvial)
 
 # --- 2. PRZYGOTOWANIE DANYCH ---
 # Zakładam, że 'model_data' jest w pamięci.
 
-# a) Przygotowanie zmiennych (porządek i tłumaczenie)
-alluvial_data <- model_data %>%
+alluvial_data_fixed <- model_data %>%
+  # KROK 1: Rekonstrukcja jednej kolumny Płci z kolumn zero-jedynkowych
   mutate(
-    # Uporządkowanie wyczerpania (kluczowe dla czytelności przepływu)
+    Gender_Reconstructed = case_when(
+      plec_kobieta == 1 ~ "Women",
+      plec_mezczyzna == 1 ~ "Men",
+      # Wszystko inne (czyli plec_inna) zamieniamy na NA (brak danych)
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  # KROK 2: Filtrowanie - usuwamy przypadki 'inne' (czyli te, które stały się NA)
+  filter(!is.na(Gender_Reconstructed)) %>%
+  # KROK 3: Przygotowanie zmiennych do wykresu (tłumaczenie i porządek)
+  mutate(
+    # Uporządkowanie wyczerpania
     wyczerpanie_studenta = factor(
       wyczerpanie_studenta,
       levels = c("niskie", "umiarkowane", "wysokie"),
       labels = c("Low", "Moderate", "High"),
       ordered = TRUE
     ),
-    # Upewnienie się, że Płeć jest faktorem (dostosuj nazwy poziomów jeśli masz inne!)
-    # Zakładam, że w danych masz np. 'Kobieta', 'Mężczyzna'.
-    # Jeśli masz 'Female', 'Male', zmień labels odpowiednio.
-    Gender = as.factor(plec) 
+    # Ustawienie nowej kolumny płci jako faktora
+    Gender = as.factor(Gender_Reconstructed)
   ) %>%
-  # b) Agregacja danych - liczymy ile jest osób w każdej kombinacji Płeć + Wyczerpanie
-  # To jest format potrzebny dla ggalluvial (frequency table)
+  # KROK 4: Agregacja danych (liczenie wystąpień) dla ggalluvial
   count(Gender, wyczerpanie_studenta)
 
 
-# --- 3. DEFINICJA KOLORÓW ---
-# Zielona paleta dla przepływów (zgodna z poprzednimi wykresami)
-green_palette_flow <- c("Low" = "#A1D99B", 
-                        "Moderate" = "#41AB5D", 
+# --- 3. DEFINICJA KOLORÓW (Zielona paleta) ---
+green_palette_flow <- c("Low" = "#A1D99B",
+                        "Moderate" = "#41AB5D",
                         "High" = "#006837")
 
-# Opcjonalne: Kolory dla bloków Płci po lewej stronie (np. neutralne szarości lub wyróżniające)
-# Jeśli wolisz, żeby były szare, usuń argument 'fill = Gender' w geom_stratum dla axis1 poniżej.
 
 # --- 4. RYSOWANIE WYKRESU ALLUVIAL ---
-
-ggplot(alluvial_data,
-       aes(axis1 = Gender,               # Lewa oś: Płeć
-           axis2 = wyczerpanie_studenta, # Prawa oś: Wyczerpanie
-           y = n)) +                     # Grubość strumienia: Liczba osób (n)
+ggplot(alluvial_data_fixed,
+       aes(axis1 = Gender,               # Oś 1: Zrekonstruowana Płeć
+           axis2 = wyczerpanie_studenta, # Oś 2: Wyczerpanie
+           y = n)) +                     # Grubość: Liczba osób
   
-  # a) Rysowanie przepływów (alluvia)
-  geom_alluvium(aes(fill = wyczerpanie_studenta), # Kolor strumienia zależy od celu (wyczerpania)
+  # Przepływy
+  geom_alluvium(aes(fill = wyczerpanie_studenta),
                 width = 1/12, alpha = 0.7, color = "white", size = 0.5) +
   
-  # b) Rysowanie bloków kategorii (strata)
+  # Bloki kategorii
   geom_stratum(width = 1/6, fill = "gray90", color = "gray30") +
-  
-  # c) Dodanie tekstów na blokach
   geom_text(stat = "stratum", aes(label = after_stat(stratum)), size = 4, fontface = "bold") +
   
-  # d) Skale i kolory
-  scale_x_discrete(limits = c("Gender", "Exhaustion Level"), expand = c(.05, .05)) +
+  # Skale i estetyka
+  scale_x_discrete(limits = c("Gender", "Burnout Level"), expand = c(.05, .05)) +
   scale_fill_manual(values = green_palette_flow, name = "Exhaustion Level") +
-  
-  # e) Opisy i motyw
   labs(
     title = "Gender Differences in Student Burnout Flow",
-    subtitle = "Visualizing how male and female student populations distribute across exhaustion levels",
-    y = "Number of Students" # Oś Y pokazuje teraz całkowitą liczbę
+    subtitle = "Flow of Men and Women towards different exhaustion levels",
+    y = " "
   ) +
   theme_minimal() +
   theme(
     plot.title = element_text(face = "bold", size = 16),
     plot.subtitle = element_text(color = "gray40", size = 12),
-    axis.text.x = element_text(face = "bold", size = 12, vjust = -1), # Podpisy osi na dole
-    axis.text.y = element_blank(), # Ukrywamy liczby na osi Y (bo grubości mówią same za siebie)
+    axis.text.x = element_text(face = "bold", size = 12, vjust = -1),
+    axis.text.y = element_blank(),
     axis.ticks = element_blank(),
-    panel.grid = element_blank(), # Czyste tło bez siatki
+    panel.grid = element_blank(),
     legend.position = "bottom"
+  )
+#---------------------------
+#Wykres skumulowany 100% - Płeć a Wyczerpan 
+#---------------------------
+
+library(scales) # Do ładnego formatowania procentów
+
+# --- 2. PRZYGOTOWANIE DANYCH ---
+# Zakładam, że 'model_data' jest w pamięci.
+
+plot_data_gender_prop <- model_data %>%
+  # Rekonstrukcja jednej kolumny Płci
+  mutate(
+    Gender_Reconstructed = case_when(
+      plec_kobieta == 1 ~ "Women",
+      plec_mezczyzna == 1 ~ "Men",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  # Filtrowanie (usuwamy 'inne')
+  filter(!is.na(Gender_Reconstructed)) %>%
+  # Porządkowanie zmiennych
+  mutate(
+    wyczerpanie_studenta = factor(
+      wyczerpanie_studenta,
+      levels = c("wysokie", "umiarkowane", "niskie"),
+      labels = c("High", "Moderate", "Low"),
+      ordered = TRUE
+    ),
+    Gender = as.factor(Gender_Reconstructed)
+  )
+
+# --- 3. DEFINICJA KOLORÓW ---
+green_palette_reversed <- c("High" = "#006837",
+                            "Moderate" = "#41AB5D",
+                            "Low" = "#A1D99B")
+
+# --- 4. RYSOWANIE WYKRESU SKUMULOWANEGO 100% (POPRAWIONY) ---
+
+ggplot(plot_data_gender_prop, aes(x = Gender, fill = wyczerpanie_studenta)) +
+  # POPRAWKA 1: Zmiana 'size' na 'linewidth' dla obramowania słupka
+  geom_bar(position = "fill", width = 0.7, color = "white", linewidth = 0.5) +
+  
+  # Dodawanie etykiet procentowych (tu 'size' zostaje, bo to wielkość tekstu)
+  geom_text(
+    aes(label = scales::percent(after_stat(count) / tapply(after_stat(count), after_stat(x), sum)[as.character(after_stat(x))], accuracy = 0.1)),
+    stat = "count",
+    position = position_fill(vjust = 0.5),
+    color = "white",
+    fontface = "bold",
+    size = 4
+  ) +
+  
+  scale_y_continuous(labels = scales::percent_format()) +
+  
+  # POPRAWKA 2a: Usunięcie 'guides(...)' ze środka scale_fill_manual
+  scale_fill_manual(values = green_palette_reversed, name = "Exhaustion Level") +
+  
+  # POPRAWKA 2b: Dodanie 'guides()' jako osobnej warstwy
+  guides(fill = guide_legend(reverse = TRUE)) +
+  
+  labs(
+    title = "Proportion of Burnout Levels by Gender",
+    subtitle = "Comparing the relative distribution of exhaustion within men and women populations",
+    x = NULL,
+    y = "Proportion (%)"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 16),
+    plot.subtitle = element_text(color = "gray40", size = 12),
+    axis.text.x = element_text(face = "bold", size = 13),
+    axis.text.y = element_text(color = "gray50"),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    legend.position = "top"
   )
